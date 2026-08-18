@@ -105,7 +105,8 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
       var def = TC.ATP_CALENDAR[i];
       sched.push({
         id: def.id + '_' + year, baseId: def.id, name: def.name, cat: def.cat,
-        surf: def.surf, startDay: TC.dayOf(year, def.m, def.d), dur: def.dur
+        surf: def.surf, startDay: TC.dayOf(year, def.m, def.d), dur: def.dur,
+        region: TC.EVENT_REGION[def.id] || null
       });
     }
     // Challengers y Futures procedurales: cada semana del anio (ene-nov)
@@ -154,6 +155,45 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
   };
 
   // ================== ENTRADA A TORNEOS ==================
+  // Region de cada pais (para que la IA prefiera torneos cerca de casa)
+  var REGION_OF = {
+    ARG:'sam', BRA:'sam', CHI:'sam', URU:'sam', COL:'sam', PER:'sam', ECU:'sam', BOL:'sam', PAR:'sam', VEN:'sam',
+    USA:'nam', CAN:'nam', MEX:'nam',
+    AUS:'oce', NZL:'oce',
+    JPN:'asia', CHN:'asia', KOR:'asia', IND:'asia', TPE:'asia', THA:'asia', INA:'asia', KAZ:'asia', UZB:'asia',
+    SUD:'afr', RSA:'afr', MAR:'afr', EGY:'afr', TUN:'afr'
+    // el resto (Europa y este europeo) cae en 'eur' por defecto
+  };
+  function playerRegion(p){ return REGION_OF[p.country] || 'eur'; }
+
+  function strHashNum(s){
+    var h = 0;
+    for(var i = 0; i < s.length; i++){ h = (Math.imul(h, 31) + s.charCodeAt(i)) | 0; }
+    return h;
+  }
+  // ruido determinista por (jugador, torneo): estable dentro de la semana, distinto entre torneos
+  function h01(a, b){
+    var x = Math.imul(a + 1, 73856093) ^ Math.imul(b + 1, 19349663);
+    x = Math.imul(x ^ (x >>> 13), 0x5bd1e995);
+    x ^= x >>> 15;
+    return (x >>> 0) / 4294967296;
+  }
+
+  // Entre torneos "hermanos" (misma categoria, misma semana), cada jugador elige el suyo:
+  // superficie preferida + cercania geografica + gusto personal
+  function chooseSibling(p, sibs){
+    var best = null, bestScore = -Infinity;
+    for(var i = 0; i < sibs.length; i++){
+      var s = sibs[i];
+      if(s._hn == null) s._hn = strHashNum(s.id);
+      var score = h01(p.id, s._hn);                                  // gusto personal (0-1)
+      if(s.surf === p.pref) score += 0.7;                             // su superficie
+      if(s.region && s.region === playerRegion(p)) score += 0.55;     // cerca de casa
+      if(score > bestScore){ bestScore = score; best = s; }
+    }
+    return best;
+  }
+
   function eligible(p, def, state){
     var cat = TC.CATS[def.cat];
     if(p.injury) return false;
@@ -184,6 +224,17 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
         pushNews(state, 'Te clasificaste a las ATP Finals!', true);
       }
     } else {
+      // torneos hermanos: misma categoria y misma semana (el jugador elige uno)
+      var sibs = [];
+      var sib250 = null;
+      for(var si = 0; si < state.schedule.length; si++){
+        var sd = state.schedule[si];
+        if(sd.startDay !== def.startDay) continue;
+        if(sd.cat === def.cat) sibs.push(sd);
+        if(def.cat === '500' && sd.cat === '250') sib250 = sd;
+      }
+      if(def._hn == null) def._hn = strHashNum(def.id);
+
       var pool = [];
       for(var i = 0; i < state.players.length; i++){
         var p = state.players[i];
@@ -192,6 +243,12 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
         if(p.energy < 42 && def.cat !== 'GS') continue; // la IA se administra
         // los bien rankeados rara vez bajan a jugar categorias menores
         if(cat.idealMin && p.rank < cat.idealMin && rng() > 0.15) continue;
+        // si hay varios torneos de esta categoria en la semana, cada uno va al que eligio
+        if(sibs.length > 1 && chooseSibling(p, sibs).id !== def.id) continue;
+        // algun buen jugador baja del 500 al 250 de la misma semana (preparacion, casa, etc)
+        if(sib250 && p.rank <= 60 && h01(p.id + 7919, def._hn) < 0.08) continue;
+        // y a veces un jugador simplemente se toma la semana libre
+        if(h01(p.id + 104729, def._hn) < 0.06) continue;
         pool.push(p);
       }
       // barajar antes de ordenar: los no rankeados (empate en 9999) entran en orden aleatorio
@@ -243,6 +300,17 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
       for(var k = 0; k < top.length; k++) ids.push(top[k].id);
       return ids;
     }
+    // misma logica de eleccion entre torneos hermanos que al armar el cuadro real
+    var sibs = [];
+    var sib250 = null;
+    for(var si = 0; si < state.schedule.length; si++){
+      var sd = state.schedule[si];
+      if(sd.startDay !== def.startDay) continue;
+      if(sd.cat === def.cat) sibs.push(sd);
+      if(def.cat === '500' && sd.cat === '250') sib250 = sd;
+    }
+    if(def._hn == null) def._hn = strHashNum(def.id);
+
     var pool = [];
     for(var i = 0; i < state.players.length; i++){
       var p = state.players[i];
@@ -250,6 +318,9 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
       if(p.rank < cat.minRank || p.rank > cat.maxRank) continue;
       if(cat.idealMin && p.rank < cat.idealMin) continue; // los top no suelen bajar
       if(p.injury && state.day + p.injury.days > def.startDay) continue;
+      if(sibs.length > 1 && chooseSibling(p, sibs).id !== def.id) continue;
+      if(sib250 && p.rank <= 60 && h01(p.id + 7919, def._hn) < 0.08) continue;
+      if(h01(p.id + 104729, def._hn) < 0.06) continue;
       pool.push(p);
     }
     pool.sort(function(a, b){ return a.rank - b.rank; });

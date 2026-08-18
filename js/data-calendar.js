@@ -68,6 +68,22 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     {id:'finals',     name:'ATP Finals (Turin)',          cat:'FINALS',surf:'indoor', m:11, d:22, dur:8}
   ];
 
+  // Region geografica de cada torneo ATP (para que la IA elija torneos cercanos/afines)
+  TC.EVENT_REGION = {
+    brisbane:'oce', hongkong:'asia', adelaide:'oce', auckland:'oce', ausopen:'oce',
+    montpellier:'eur', cordoba:'sam', dallas:'nam', rotterdam:'eur', buenosaires:'sam',
+    delray:'nam', marseille:'eur', rio:'sam', doha:'asia', dubai:'asia', acapulco:'nam',
+    santiago:'sam', indianwells:'nam', miami:'nam', marrakech:'afr', houston:'nam',
+    bucarest:'eur', montecarlo:'eur', barcelona:'eur', munich:'eur', madrid:'eur',
+    roma:'eur', hamburgo:'eur', ginebra:'eur', rolandgarros:'eur', stuttgart:'eur',
+    hertogenbosch:'eur', halle:'eur', queens:'eur', mallorca:'eur', eastbourne:'eur',
+    wimbledon:'eur', bastad:'eur', gstaad:'eur', loscabos:'nam', umag:'eur',
+    kitzbuhel:'eur', washington:'nam', canada:'nam', cincinnati:'nam', winstonsalem:'nam',
+    usopen:'nam', chengdu:'asia', hangzhou:'asia', tokio:'asia', beijing:'asia',
+    shanghai:'asia', almaty:'asia', bruselas:'eur', estocolmo:'eur', viena:'eur',
+    basilea:'eur', paris:'eur', metz:'eur', atenas:'eur', finals:'eur'
+  };
+
   // Configuracion por categoria: draw, puntos por ronda alcanzada (indice = partidos ganados),
   // corte de entrada (mejor ranking aceptado / peor ranking aceptado)
   TC.CATS = {

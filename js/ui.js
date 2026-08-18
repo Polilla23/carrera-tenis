@@ -11,6 +11,7 @@ var UI = {};
   var archiveSurf = 'all';   // superficie o 'all'
   var archiveCat = 'all';    // categoria o 'all'
   var chartRange = '1y';     // rango del grafico de ranking: 3m | 1y | all
+  var weekReport = null;     // cambios de atributos desde el ultimo avance
   var app;
 
   function $(id){ return document.getElementById(id); }
@@ -221,6 +222,13 @@ var UI = {};
       '<div class="stat"><div class="v">' + fmtForm(h.form) + '</div><div class="l">Forma</div></div>' +
       '<div class="stat"><div class="ebar"><div style="width:' + Math.round(h.energy) + '%;background:' + ecolor + ';color:' + ecolor + '"></div></div>' +
         '<div class="l">Energia ' + Math.round(h.energy) + '%</div></div>' +
+      (weekReport && weekReport.length ?
+        '<div class="stat"><div class="v" style="font-size:12px;font-weight:700">' +
+          weekReport.map(function(g){
+            return '<span style="color:' + (g.d > 0 ? 'var(--accent2)' : 'var(--danger)') + '">' +
+              (g.d > 0 ? '▲' : '▼') + Math.abs(g.d).toFixed(2) + ' ' + TC.ATTR_LABEL[g.a] + '</span>';
+          }).join(' · ') +
+        '</div><div class="l">Esta semana</div></div>' : '') +
       (h.injury ? '<div class="injury-chip">LESION: ' + esc(h.injury.name) + ' (' + h.injury.days + 'd)</div>' : '') +
       '<div class="spacer"></div>' +
       '<div class="datechip">📅 ' + TC.fmtDate(S.day) + '</div>' +
@@ -1126,7 +1134,16 @@ var UI = {};
   }
 
   function doAdvance(mode){
+    var h = human();
+    var before = {};
+    TC.ATTRS.forEach(function(a){ before[a] = h[a]; });
     var ev = TC.advance(S, mode);
+    // que cambio en tus atributos desde el ultimo avance
+    weekReport = TC.ATTRS.map(function(a){
+      return {a: a, d: Math.round((h[a] - before[a]) * 1000) / 1000};
+    }).filter(function(x){ return Math.abs(x.d) >= 0.001; })
+      .sort(function(x, y){ return Math.abs(y.d) - Math.abs(x.d); })
+      .slice(0, 3);
     TC.save(S);
     render();
     if(ev.type === 'match') openMatchModal();
