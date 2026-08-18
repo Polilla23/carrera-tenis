@@ -259,9 +259,9 @@ var UI = {};
     }).join('') + '</div>';
   }
 
-  // Ubicacion legible de un torneo: pais (ATP) y/o continente
+  // Ubicacion legible de un torneo: pais y/o continente
   function geoOf(d){
-    var c = TC.EVENT_COUNTRY[d.baseId];
+    var c = d.country || TC.EVENT_COUNTRY[d.baseId];
     var r = d.region ? TC.REGION_LABEL[d.region] : null;
     if(c && r) return c + ' · ' + r;
     return c || r || '';

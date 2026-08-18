@@ -119,22 +119,53 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
         region: TC.EVENT_REGION[def.id] || null
       });
     }
-    // Challengers y Futures procedurales: cada semana del anio (ene-nov)
     var yStart = TC.dayOf(year, 1, 1);
-    var nCH = TC.CH_CITIES.length, nIT = TC.ITF_CITIES.length;
-    for(var w = 0; w < 46; w++){
-      var start = yStart + w * 7;
+    var w, start;
+
+    // Challengers: calendario real 2026 (hasta 4 por semana, con paises y regiones reales)
+    if(TC.CH_CALENDAR && TC.CH_CALENDAR.length){
+      for(var c = 0; c < TC.CH_CALENDAR.length; c++){
+        var ch = TC.CH_CALENDAR[c];
+        sched.push({id:'chr' + c + '_' + year, baseId:'chr' + c, name: ch.name,
+                    cat: ch.cat, surf: ch.surf, startDay: yStart + ch.w * 7, dur: 7,
+                    region: ch.region, country: ch.country});
+      }
+    } else {
+      // respaldo: challengers procedurales (partidas viejas sin el archivo de datos)
+      var nCH = TC.CH_CITIES.length;
+      for(w = 0; w < 46; w++){
+        start = yStart + w * 7;
+        var m0 = TC.dateOf(start).getUTCMonth() + 1;
+        var sf = TC.SEASON_SURF[m0] || ['hard','clay','hard'];
+        var i1 = (w * 2) % nCH, i2 = (w * 2 + 1) % nCH;
+        sched.push({id:'ch125_' + year + '_' + w, baseId:'ch125_' + w, name:'Challenger de ' + TC.CH_CITIES[i1],
+                    cat:'CH125', surf: sf[0], startDay: start, dur: 7, region: TC.CH_REGIONS[i1]});
+        sched.push({id:'ch75_' + year + '_' + w, baseId:'ch75_' + w, name:'Challenger de ' + TC.CH_CITIES[i2],
+                    cat:'CH75', surf: sf[1], startDay: start, dur: 7, region: TC.CH_REGIONS[i2]});
+      }
+    }
+
+    // Futures ITF: dos M25 y dos M15 por semana, siempre en regiones distintas
+    var nIT = TC.ITF_CITIES.length;
+    function pickDistinct(base){
+      var a = base % nIT, b = (base + 1) % nIT, guard = 0;
+      while(TC.ITF_REGIONS[b] === TC.ITF_REGIONS[a] && guard++ < nIT){ b = (b + 1) % nIT; }
+      return [a, b];
+    }
+    for(w = 0; w < 46; w++){
+      start = yStart + w * 7;
       var month = TC.dateOf(start).getUTCMonth() + 1;
       var surfs = TC.SEASON_SURF[month] || ['hard','clay','hard'];
-      var i1 = (w * 2) % nCH, i2 = (w * 2 + 1) % nCH, i3 = w % nIT, i4 = (w + 11) % nIT;
-      sched.push({id:'ch125_' + year + '_' + w, baseId:'ch125_' + w, name:'Challenger de ' + TC.CH_CITIES[i1],
-                  cat:'CH125', surf: surfs[0], startDay: start, dur: 7, region: TC.CH_REGIONS[i1]});
-      sched.push({id:'ch75_' + year + '_' + w, baseId:'ch75_' + w, name:'Challenger de ' + TC.CH_CITIES[i2],
-                  cat:'CH75', surf: surfs[1], startDay: start, dur: 7, region: TC.CH_REGIONS[i2]});
-      sched.push({id:'itf25_' + year + '_' + w, baseId:'itf25_' + w, name:'M25 ' + TC.ITF_CITIES[i3],
-                  cat:'ITF25', surf: surfs[2], startDay: start, dur: 6, region: TC.ITF_REGIONS[i3]});
-      sched.push({id:'itf15_' + year + '_' + w, baseId:'itf15_' + w, name:'M15 ' + TC.ITF_CITIES[i4],
-                  cat:'ITF15', surf: surfs[(w) % 3], startDay: start, dur: 6, region: TC.ITF_REGIONS[i4]});
+      var p25 = pickDistinct(w * 3);
+      var p15 = pickDistinct(w * 5 + 11);
+      sched.push({id:'itf25a_' + year + '_' + w, baseId:'itf25a_' + w, name:'M25 ' + TC.ITF_CITIES[p25[0]],
+                  cat:'ITF25', surf: surfs[2], startDay: start, dur: 6, region: TC.ITF_REGIONS[p25[0]]});
+      sched.push({id:'itf25b_' + year + '_' + w, baseId:'itf25b_' + w, name:'M25 ' + TC.ITF_CITIES[p25[1]],
+                  cat:'ITF25', surf: surfs[0], startDay: start, dur: 6, region: TC.ITF_REGIONS[p25[1]]});
+      sched.push({id:'itf15a_' + year + '_' + w, baseId:'itf15a_' + w, name:'M15 ' + TC.ITF_CITIES[p15[0]],
+                  cat:'ITF15', surf: surfs[w % 3], startDay: start, dur: 6, region: TC.ITF_REGIONS[p15[0]]});
+      sched.push({id:'itf15b_' + year + '_' + w, baseId:'itf15b_' + w, name:'M15 ' + TC.ITF_CITIES[p15[1]],
+                  cat:'ITF15', surf: surfs[(w + 1) % 3], startDay: start, dur: 6, region: TC.ITF_REGIONS[p15[1]]});
     }
     sched.sort(function(a, b){ return a.startDay - b.startDay || catRank(a.cat) - catRank(b.cat); });
     state.schedule = sched;
