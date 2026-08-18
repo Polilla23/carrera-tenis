@@ -72,6 +72,7 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     var snap = {};
     for(k in arch.attrs) snap[k] = h[k];
     h.prev = snap;
+    h.loc = TC.playerRegion(h); // arrancas en casa
     state.players.push(h);
     state.humanId = h.id;
 
@@ -143,7 +144,8 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     var pct = Math.round(better / n * 100);
     if(pct >= 80) return {level:'hard', pct: pct,
       msg:'Cuadro muy dificil: el ' + pct + '% de los inscriptos juega mejor que vos. Lo mas probable es que pierdas temprano.'};
-    if(pct <= 15) return {level:'easy', pct: pct,
+    // sin ranking no hay "sobreclasificado": tenes que arrancar por abajo si o si
+    if(pct <= 15 && h.rank !== 9999) return {level:'easy', pct: pct,
       msg:'Estas sobreclasificado: solo el ' + pct + '% del cuadro esta a tu altura o mejor. Vas a ganar pocos puntos para tu nivel.'};
     return null;
   };

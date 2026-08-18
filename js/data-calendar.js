@@ -84,6 +84,23 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     basilea:'eur', paris:'eur', metz:'eur', atenas:'eur', finals:'eur'
   };
 
+  // Pais de cada torneo ATP (para mostrar donde queda)
+  TC.EVENT_COUNTRY = {
+    brisbane:'Australia', hongkong:'Hong Kong', adelaide:'Australia', auckland:'Nueva Zelanda', ausopen:'Australia',
+    montpellier:'Francia', cordoba:'Argentina', dallas:'Estados Unidos', rotterdam:'Paises Bajos', buenosaires:'Argentina',
+    delray:'Estados Unidos', marseille:'Francia', rio:'Brasil', doha:'Qatar', dubai:'Emiratos Arabes', acapulco:'Mexico',
+    santiago:'Chile', indianwells:'Estados Unidos', miami:'Estados Unidos', marrakech:'Marruecos', houston:'Estados Unidos',
+    bucarest:'Rumania', montecarlo:'Monaco', barcelona:'Espania', munich:'Alemania', madrid:'Espania',
+    roma:'Italia', hamburgo:'Alemania', ginebra:'Suiza', rolandgarros:'Francia', stuttgart:'Alemania',
+    hertogenbosch:'Paises Bajos', halle:'Alemania', queens:'Reino Unido', mallorca:'Espania', eastbourne:'Reino Unido',
+    wimbledon:'Reino Unido', bastad:'Suecia', gstaad:'Suiza', loscabos:'Mexico', umag:'Croacia',
+    kitzbuhel:'Austria', washington:'Estados Unidos', canada:'Canada', cincinnati:'Estados Unidos', winstonsalem:'Estados Unidos',
+    usopen:'Estados Unidos', chengdu:'China', hangzhou:'China', tokio:'Japon', beijing:'China',
+    shanghai:'China', almaty:'Kazajistan', bruselas:'Belgica', estocolmo:'Suecia', viena:'Austria',
+    basilea:'Suiza', paris:'Francia', metz:'Francia', atenas:'Grecia', finals:'Italia'
+  };
+  TC.REGION_LABEL = {sam:'Sudamerica', nam:'Norteamerica', eur:'Europa', asia:'Asia', oce:'Oceania', afr:'Africa'};
+
   // Configuracion por categoria: draw, puntos por ronda alcanzada (indice = partidos ganados),
   // corte de entrada (mejor ranking aceptado / peor ranking aceptado)
   TC.CATS = {

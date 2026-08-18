@@ -249,7 +249,7 @@ var UI = {};
 
   function renderTabs(){
     var tabs = [
-      ['calendar','Calendario'], ['tournament','Torneo'], ['player','Jugador'],
+      ['calendar','Calendario'], ['agenda','Agenda'], ['tournament','Torneo'], ['player','Jugador'],
       ['ranking','Ranking'], ['archive','Archivo'], ['history','Historial'], ['news','Noticias']
     ];
     var inT = playerTournament();
@@ -259,8 +259,82 @@ var UI = {};
     }).join('') + '</div>';
   }
 
+  // Ubicacion legible de un torneo: pais (ATP) y/o continente
+  function geoOf(d){
+    var c = TC.EVENT_COUNTRY[d.baseId];
+    var r = d.region ? TC.REGION_LABEL[d.region] : null;
+    if(c && r) return c + ' · ' + r;
+    return c || r || '';
+  }
+
+  // ================= AGENDA =================
+  function renderAgenda(){
+    var h = human();
+    var home = TC.REGION_LABEL[TC.playerRegion(h)] || '?';
+    var loc = TC.REGION_LABEL[h.loc || TC.playerRegion(h)] || home;
+    var html = '<div class="pstats">' +
+      stat('📍 ' + loc, 'Estas en') +
+      stat('🏠 ' + home + ' (' + h.country + ')', 'Casa') +
+      stat(Math.round(h.energy) + '%', 'Energia') +
+      '</div>';
+
+    // linea de tiempo: torneo actual + inscripciones futuras
+    var items = [];
+    var cur = playerTournament();
+    if(cur) items.push({def: {name: cur.name, cat: cur.cat, surf: cur.surf, startDay: cur.startDay, dur: cur.dur, region: cur.region, baseId: (cur.id || '').replace(/_\d+$/, ''), id: cur.id}, active: true});
+    for(var i = 0; i < S.registrations.length; i++){
+      var d = TC.findDef(S, S.registrations[i]);
+      if(d) items.push({def: d, active: false});
+    }
+    items.sort(function(a, b){ return a.def.startDay - b.def.startDay; });
+
+    if(!items.length){
+      return html + '<h3 class="section">Proximos viajes</h3>' +
+        '<p style="color:var(--muted)">No tenes torneos por delante. Inscribite desde el calendario y aca vas a ver el plan de viajes, el jet lag y los dias de descanso entre torneo y torneo.</p>';
+    }
+
+    html += '<h3 class="section">Tu gira</h3>';
+    var prevLoc = h.loc || TC.playerRegion(h);
+    var prevEnd = S.day;
+    for(i = 0; i < items.length; i++){
+      var def = items[i].def;
+      // dias libres antes
+      var gap = def.startDay - prevEnd;
+      if(gap > 0 && !items[i].active){
+        html += '<div class="agenda-leg">💤 ' + gap + ' dia' + (gap === 1 ? '' : 's') + ' libre' + (gap === 1 ? '' : 's') +
+          ' <span style="color:var(--muted)">(descansando recuperas hasta +' + Math.min(100, Math.round(gap * 8)) + ' de energia)</span></div>';
+      }
+      // viaje
+      if(!items[i].active){
+        var cost = TC.travelCost(prevLoc, def.region);
+        var far = cost > 5;
+        html += '<div class="agenda-leg' + (far ? ' far' : '') + '">' +
+          (far ? '✈️ Vuelo largo: ' : '🚗 Viaje corto: ') +
+          (TC.REGION_LABEL[prevLoc] || '?') + ' → ' + (TC.REGION_LABEL[def.region] || '?') +
+          ' <b style="color:' + (far ? 'var(--danger)' : 'var(--muted)') + '">−' + cost + ' energia</b></div>';
+      }
+      // torneo
+      html += renderTournamentRow(def);
+      prevLoc = def.region || prevLoc;
+      prevEnd = def.startDay + def.dur;
+    }
+
+    // consejo si hay saltos de continente seguidos
+    var jumps = 0;
+    var pl = h.loc || TC.playerRegion(h);
+    for(i = 0; i < items.length; i++){
+      if(items[i].def.region && items[i].def.region !== pl) jumps++;
+      pl = items[i].def.region || pl;
+    }
+    if(jumps >= 2){
+      html += '<div class="agenda-leg far" style="margin-top:10px">⚠️ Tu gira cruza continentes ' + jumps + ' veces. Cada vuelo largo cuesta 9 de energia: pensa el orden de tus torneos.</div>';
+    }
+    return html;
+  }
+
   function renderTab(){
     if(tab === 'calendar') return detailId ? renderTournamentDetail(detailId) : renderCalendar();
+    if(tab === 'agenda') return renderAgenda();
     if(tab === 'tournament') return renderTournament();
     if(tab === 'player') return renderPlayer();
     if(tab === 'ranking') return renderRanking();
@@ -497,7 +571,8 @@ var UI = {};
       '<div class="dates">' + TC.fmtRange(d.startDay, d.startDay + d.dur - 1) + '</div>' +
       badgeHtml(d.cat) +
       sdotHtml(d.surf) +
-      '<div class="tname tlink" data-detail="' + d.id + '" title="Ver detalle del torneo">' + esc(d.name) + '</div>' +
+      '<div class="tname tlink" data-detail="' + d.id + '" title="Ver detalle del torneo">' + esc(d.name) +
+        (geoOf(d) ? ' <span style="color:var(--muted);font-size:11px;font-weight:400">📍 ' + esc(geoOf(d)) + '</span>' : '') + '</div>' +
       '<div class="status">' + status + '</div>' + btn +
     '</div>';
   }
@@ -766,7 +841,8 @@ var UI = {};
       '<span class="badge" style="background:' + cat.color + '">' + cat.label + '</span>' +
       '<span class="sdot ' + def.surf + '"></span> <span style="color:var(--muted)">' + SURF_LABEL[def.surf] +
       ' · ' + TC.fmtRange(def.startDay, def.startDay + def.dur - 1) +
-      ' · Cuadro de ' + cat.draw + (def.cat === 'GS' ? ' · Mejor de 5' : '') + '</span></div>';
+      ' · Cuadro de ' + cat.draw + (def.cat === 'GS' ? ' · Mejor de 5' : '') +
+      (geoOf(def) ? ' · 📍 ' + esc(geoOf(def)) : '') + '</span></div>';
 
     // estado + inscripcion
     if(!def.started){

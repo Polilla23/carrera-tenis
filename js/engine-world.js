@@ -93,6 +93,7 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
       for(var a2 = 0; a2 < ATTRS.length; a2++) snap[ATTRS[a2]] = pl[ATTRS[a2]];
       pl.prev = snap;
       assignPotential(pl, rng);
+      pl.loc = playerRegion(pl); // todos arrancan en casa
     }
     return {players: players, rngState: (seed || 12345) >>> 0};
   };
@@ -125,14 +126,15 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
       var start = yStart + w * 7;
       var month = TC.dateOf(start).getUTCMonth() + 1;
       var surfs = TC.SEASON_SURF[month] || ['hard','clay','hard'];
-      sched.push({id:'ch125_' + year + '_' + w, baseId:'ch125_' + w, name:'Challenger de ' + TC.CH_CITIES[(w * 2) % nCH],
-                  cat:'CH125', surf: surfs[0], startDay: start, dur: 7});
-      sched.push({id:'ch75_' + year + '_' + w, baseId:'ch75_' + w, name:'Challenger de ' + TC.CH_CITIES[(w * 2 + 1) % nCH],
-                  cat:'CH75', surf: surfs[1], startDay: start, dur: 7});
-      sched.push({id:'itf25_' + year + '_' + w, baseId:'itf25_' + w, name:'M25 ' + TC.ITF_CITIES[w % nIT],
-                  cat:'ITF25', surf: surfs[2], startDay: start, dur: 6});
-      sched.push({id:'itf15_' + year + '_' + w, baseId:'itf15_' + w, name:'M15 ' + TC.ITF_CITIES[(w + 11) % nIT],
-                  cat:'ITF15', surf: surfs[(w) % 3], startDay: start, dur: 6});
+      var i1 = (w * 2) % nCH, i2 = (w * 2 + 1) % nCH, i3 = w % nIT, i4 = (w + 11) % nIT;
+      sched.push({id:'ch125_' + year + '_' + w, baseId:'ch125_' + w, name:'Challenger de ' + TC.CH_CITIES[i1],
+                  cat:'CH125', surf: surfs[0], startDay: start, dur: 7, region: TC.CH_REGIONS[i1]});
+      sched.push({id:'ch75_' + year + '_' + w, baseId:'ch75_' + w, name:'Challenger de ' + TC.CH_CITIES[i2],
+                  cat:'CH75', surf: surfs[1], startDay: start, dur: 7, region: TC.CH_REGIONS[i2]});
+      sched.push({id:'itf25_' + year + '_' + w, baseId:'itf25_' + w, name:'M25 ' + TC.ITF_CITIES[i3],
+                  cat:'ITF25', surf: surfs[2], startDay: start, dur: 6, region: TC.ITF_REGIONS[i3]});
+      sched.push({id:'itf15_' + year + '_' + w, baseId:'itf15_' + w, name:'M15 ' + TC.ITF_CITIES[i4],
+                  cat:'ITF15', surf: surfs[(w) % 3], startDay: start, dur: 6, region: TC.ITF_REGIONS[i4]});
     }
     sched.sort(function(a, b){ return a.startDay - b.startDay || catRank(a.cat) - catRank(b.cat); });
     state.schedule = sched;
@@ -174,6 +176,14 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     // el resto (Europa y este europeo) cae en 'eur' por defecto
   };
   function playerRegion(p){ return REGION_OF[p.country] || 'eur'; }
+  TC.playerRegion = playerRegion;
+
+  // Costo de energia por viajar al torneo (jet lag intercontinental)
+  TC.travelCost = function(fromRegion, toRegion){
+    if(!toRegion) return 1.5;
+    if(!fromRegion || fromRegion === toRegion) return 1.5;
+    return 9;
+  };
 
   function strHashNum(s){
     var h = 0;
@@ -292,8 +302,19 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
 
     if(entrants.length < 2) return null;
     var inst = TC.createTournament(def, def.startDay, entrants, rng);
+    inst.region = def.region || null;
     for(var e = 0; e < entrants.length; e++){
-      if(entrants[e] != null) state.players[entrants[e]].curT = inst.id;
+      if(entrants[e] == null) continue;
+      var pe = state.players[entrants[e]];
+      pe.curT = inst.id;
+      // el viaje al torneo cuesta energia (mucho mas si es otro continente)
+      var from = pe.loc || playerRegion(pe);
+      var tc = TC.travelCost(from, def.region);
+      pe.energy = Math.max(0, pe.energy - tc);
+      if(def.region) pe.loc = def.region;
+      if(entrants[e] === state.humanId && tc > 5){
+        pushNews(state, 'Vuelo largo a ' + (TC.REGION_LABEL[def.region] || '?') + ' para ' + def.name + ' (-' + tc + ' de energia)', true);
+      }
     }
     inst.entrants = entrants.slice();
     return inst;
@@ -752,6 +773,8 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
 
     for(var i = 0; i < ps.length; i++){
       var p = ps[i];
+      // semana sin torneo: vuelta a casa (el proximo viaje sale desde ahi)
+      if(mod7(state.day) === 0 && p.curT === null) p.loc = playerRegion(p);
       if(p.injury){
         p.injury.days--;
         // parado se recupera lento, y el fisico se atrofia dia a dia

@@ -49,7 +49,9 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     return {name: l + ', ' + f, country: country};
   };
   TC.COUNTRIES = ['ARG','BRA','CHI','URU','COL','MEX','ESP','FRA','ITA','GER','SUI','AUT','GBR','USA','CAN','AUS','SRB','CRO','RUS','CZE','POL','JPN','CHN','KOR','IND','SUD','HOL','BEL','POR','SWE'];
-  // Ciudades para challengers/futures procedurales
+  // Ciudades para challengers/futures procedurales (con su region alineada)
   TC.CH_CITIES = ['Tigre','Rosario','Cordoba','Sao Paulo','Campinas','Santiago','Lima','Bogota','Guayaquil','Salzburgo','Praga','Brno','Szczecin','Sevilla','Murcia','Girona','Oeiras','Braga','Pau','Lyon','Aix-en-Provence','Biella','Trieste','Verona','Heilbronn','Ismaning','Lugano','Ortisei','Sarajevo','Banja Luka','Bucarest','Iasi','Kiev','Astana','Pune','Chennai','Yokohama','Kobe','Taipei','Busan','Guangzhou','Shenzhen','Cary','Champaign','Tiburon','Knoxville','Charlottesville','Puerto Vallarta','Monterrey','Canberra','Burnie','Playford','Nottingham','Ilkley','Surbiton'];
+  TC.CH_REGIONS = ['sam','sam','sam','sam','sam','sam','sam','sam','sam','eur','eur','eur','eur','eur','eur','eur','eur','eur','eur','eur','eur','eur','eur','eur','eur','eur','eur','eur','eur','eur','eur','eur','eur','asia','asia','asia','asia','asia','asia','asia','asia','asia','nam','nam','nam','nam','nam','nam','nam','oce','oce','oce','eur','eur','eur'];
   TC.ITF_CITIES = ['Villa Maria','Junin','Bauru','Temuco','Cochabamba','Asuncion','Manacor','Antalya','Monastir','Sharm El Sheikh','Kazan','Vilnius','Tallin','Oslo','Helsinki','Jakarta','Nonthaburi','Cancun','Santo Domingo','Naples FL','Orange Park','Edmonton','Traralgon','Mildura','Hua Hin','Colombo','Nairobi','Tunez','Rabat','Luanda'];
+  TC.ITF_REGIONS = ['sam','sam','sam','sam','sam','sam','eur','eur','afr','afr','eur','eur','eur','eur','eur','asia','asia','nam','nam','nam','nam','nam','oce','oce','asia','asia','afr','afr','afr','afr'];
 })();
