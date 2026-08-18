@@ -52,7 +52,8 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     var h = {id: state.players.length, name: cfg.name, country: cfg.country, age: 17, real: false,
              pref: cfg.pref || 'hard', energy: 100, form: 0, injury: null,
              results: [], pts: 0, rank: 9999, prevRank: 9999, wins: 0, losses: 0, titles: 0, curT: null,
-             isHuman: true, hand: cfg.hand === 'Z' ? 'Z' : 'D'};
+             isHuman: true, hand: cfg.hand === 'Z' ? 'Z' : 'D',
+             ht: Math.max(165, Math.min(211, cfg.ht || 183))};
     var k;
     if(cfg.attrs){
       // atributos armados a mano: respetar limites por stat y presupuesto global
@@ -275,6 +276,13 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
         var rng2 = TC.mulberry32((state.seed || 1) ^ 0x1E77);
         for(var j = 0; j < state.players.length; j++){
           state.players[j].hand = state.players[j].isHuman ? 'D' : (rng2() < 0.13 ? 'Z' : 'D');
+        }
+      }
+      // compat: altura
+      if(state.players && state.players.length && state.players[0].ht === undefined){
+        var rng3 = TC.mulberry32((state.seed || 1) ^ 0xA17A);
+        for(var q = 0; q < state.players.length; q++){
+          state.players[q].ht = state.players[q].isHuman ? 183 : TC._rollHeight(rng3);
         }
       }
       return state;

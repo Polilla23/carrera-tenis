@@ -40,10 +40,14 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     var b = prefBonus(p, surf);
     var day = (rng() * 2 - 1) * 0.45; // el dia bueno/malo: hace posibles las sorpresas
     var lefty = p.hand === 'Z' ? 0.15 : 0; // el saque zurdo incomoda
+    var hM = p.ht ? (p.ht - 185) / 25 : 0; // altura: mas saque, algo menos de resto y movilidad
+    // el saque alto pega mas en superficies rapidas; el polvo castiga la falta de movilidad
+    var hSrv = hM * (surf === 'grass' || surf === 'indoor' ? 0.55 : (surf === 'hard' ? 0.45 : 0.22));
+    var hMov = hM * (surf === 'clay' ? 0.22 : 0.08);
     return {
-      S: (p.srv*0.6 + p.pow*0.4 + b + day + lefty) * e * f,  // saque
-      R: (p.ret*0.55 + p.spd*0.2 + p.con*0.25 + b*0.5 + day) * e * f, // resto
-      G: (groundRating(p, surf) + b + day) * e * f,          // juego de fondo
+      S: (p.srv*0.6 + p.pow*0.4 + b + day + lefty + hSrv) * e * f,  // saque
+      R: (p.ret*0.55 + p.spd*0.2 + p.con*0.25 + b*0.5 + day - hM*0.18) * e * f, // resto
+      G: (groundRating(p, surf) + b + day - hMov) * e * f,          // juego de fondo
       fatigueRate: Math.max(0.008, 0.028 - p.sta*0.0018) // desgaste por set (depende de resistencia)
     };
   }

@@ -36,6 +36,18 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     var c = pool.cc[Math.floor(rng()*pool.cc.length)];
     return {name: l + ', ' + f, country: c};
   };
+
+  // Nombre plausible para un pais concreto (para regens que heredan nacionalidad)
+  TC.genNameFor = function(country, rng){
+    var poolKey = null;
+    for(var k in POOLS){
+      if(POOLS[k].cc.indexOf(country) >= 0){ poolKey = k; break; }
+    }
+    var pool = POOLS[poolKey] || POOLS[REGIONS[Math.floor(rng()*REGIONS.length)]];
+    var f = pool.first[Math.floor(rng()*pool.first.length)];
+    var l = pool.last[Math.floor(rng()*pool.last.length)];
+    return {name: l + ', ' + f, country: country};
+  };
   TC.COUNTRIES = ['ARG','BRA','CHI','URU','COL','MEX','ESP','FRA','ITA','GER','SUI','AUT','GBR','USA','CAN','AUS','SRB','CRO','RUS','CZE','POL','JPN','CHN','KOR','IND','SUD','HOL','BEL','POR','SWE'];
   // Ciudades para challengers/futures procedurales
   TC.CH_CITIES = ['Tigre','Rosario','Cordoba','Sao Paulo','Campinas','Santiago','Lima','Bogota','Guayaquil','Salzburgo','Praga','Brno','Szczecin','Sevilla','Murcia','Girona','Oeiras','Braga','Pau','Lyon','Aix-en-Provence','Biella','Trieste','Verona','Heilbronn','Ismaning','Lugano','Ortisei','Sarajevo','Banja Luka','Bucarest','Iasi','Kiev','Astana','Pune','Chennai','Yokohama','Kobe','Taipei','Busan','Guangzhou','Shenzhen','Cary','Champaign','Tiburon','Knoxville','Charlottesville','Puerto Vallarta','Monterrey','Canberra','Burnie','Playford','Nottingham','Ilkley','Surbiton'];

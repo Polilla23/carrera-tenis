@@ -4,6 +4,8 @@ var UI = {};
   var S = null;              // estado del juego
   var tab = 'calendar';
   var calFilter = 'auto';
+  var calMonth = 'all';      // filtro de mes del calendario
+  var calSurf = 'all';       // filtro de superficie del calendario
   var detailId = null;       // torneo abierto en el visor de detalle (def del calendario)
   var archInstId = null;     // torneo abierto desde el archivo (instancia)
   var archiveYear = null;    // anio seleccionado en el archivo
@@ -64,7 +66,7 @@ var UI = {};
   }
 
   // ================= CREACION =================
-  var createCfg = {archetype:'completo', pref:'hard', name:'', country:'ARG', attrs:null, hand:'D'};
+  var createCfg = {archetype:'completo', pref:'hard', name:'', country:'ARG', attrs:null, hand:'D', ht:183};
   function keepCreateInputs(){
     var n = $('c-name'), c = $('c-country');
     if(n) createCfg.name = n.value;
@@ -130,6 +132,11 @@ var UI = {};
           '<button class="surf-btn' + (createCfg.hand === 'D' ? ' sel' : '') + '" data-hand="D">Diestro</button>' +
           '<button class="surf-btn' + (createCfg.hand === 'Z' ? ' sel' : '') + '" data-hand="Z">Zurdo</button>' +
         '</div></div>' +
+        '<div class="form-row"><label>Altura — mas alto: mejor saque, algo menos de resto y movilidad</label>' +
+          '<div class="slider-row"><div class="an">Altura</div>' +
+          '<input type="range" min="165" max="211" step="1" value="' + createCfg.ht + '" id="c-ht">' +
+          '<div class="av" style="width:52px" id="c-ht-v">' + (createCfg.ht / 100).toFixed(2) + 'm</div></div>' +
+        '</div>' +
         '<div style="display:flex;gap:10px;margin-top:22px">' +
           '<button class="btn" id="c-back">Volver</button>' +
           '<button class="btn primary" style="flex:1;padding:12px" id="c-go">Empezar carrera (17 anios)</button>' +
@@ -167,6 +174,10 @@ var UI = {};
       createCfg.hand = b.dataset.hand;
       showCreate();
     };
+    $('c-ht').oninput = function(){
+      createCfg.ht = parseInt(this.value, 10);
+      $('c-ht-v').textContent = (createCfg.ht / 100).toFixed(2) + 'm';
+    };
     $('c-back').onclick = showMenu;
     $('c-go').onclick = function(){
       if(cfgSum() > TC.ATTR_BUDGET + 0.001) return;
@@ -176,7 +187,7 @@ var UI = {};
       for(var k in cfgAttrs()) attrsCopy[k] = cfgAttrs()[k];
       app.innerHTML = '<div class="loading-screen"><div class="spinner"></div><div>Simulando la temporada previa del circuito...</div></div>';
       setTimeout(function(){
-        S = TC.newCareer({name:name, country:country, archetype:createCfg.archetype, pref:createCfg.pref, attrs:attrsCopy, hand:createCfg.hand});
+        S = TC.newCareer({name:name, country:country, archetype:createCfg.archetype, pref:createCfg.pref, attrs:attrsCopy, hand:createCfg.hand, ht:createCfg.ht});
         TC.save(S);
         startGame();
       }, 60);
@@ -401,6 +412,18 @@ var UI = {};
       return '<button class="chip' + (calFilter===f[0]?' on':'') + '" data-filter="' + f[0] + '">' + f[1] + '</button>';
     }).join('') + '</div>';
 
+    // filtros de mes y superficie
+    html += '<div class="cal-filters">' +
+      '<button class="chip' + (calMonth === 'all' ? ' on' : '') + '" data-cmonth="all">Todos los meses</button>' +
+      TC.MESES.map(function(m, i){
+        return '<button class="chip' + (calMonth === i ? ' on' : '') + '" data-cmonth="' + i + '">' + m.slice(0, 3) + '</button>';
+      }).join('') + '</div>';
+    html += '<div class="cal-filters">' +
+      '<button class="chip' + (calSurf === 'all' ? ' on' : '') + '" data-csurf="all">Todas las superficies</button>' +
+      ['clay','hard','grass','indoor'].map(function(s){
+        return '<button class="chip' + (calSurf === s ? ' on' : '') + '" data-csurf="' + s + '">' + SURF_LABEL[s] + '</button>';
+      }).join('') + '</div>';
+
     // leyenda de categorias, de mas facil a mas dificil
     html += '<details class="legend"><summary>¿Que significa cada categoria? (de mas facil a mas dificil)</summary>';
     var order = ['ITF15','ITF25','CH75','CH125','250','500','M1000','GS','FINALS'];
@@ -424,6 +447,8 @@ var UI = {};
       if(d.startDay + d.dur < S.day - 7) continue;         // pasado lejano no
       if(!catVisible(d.cat) && S.registrations.indexOf(d.id) < 0) continue;
       var m = TC.dateOf(d.startDay).getUTCMonth();
+      if(calMonth !== 'all' && m !== calMonth) continue;
+      if(calSurf !== 'all' && d.surf !== calSurf) continue;
       (byMonth[m] = byMonth[m] || []).push(d);
     }
     var months = Object.keys(byMonth).map(Number).sort(function(a,b){return a-b;});
@@ -836,6 +861,7 @@ var UI = {};
       stat(TC.overall(h).toFixed(2), 'Nivel general') +
       stat(surfHtml(h.pref), 'Superficie') +
       stat(h.hand === 'Z' ? 'Zurdo' : 'Diestro', 'Mano') +
+      stat(h.ht ? (h.ht / 100).toFixed(2) + 'm' : '—', 'Altura') +
       '</div>';
 
     html += '<h3 class="section">Evolucion del ranking</h3>' +
@@ -862,10 +888,7 @@ var UI = {};
                         .sort(function(a,b){ return b.pts - a.pts; }).slice(0, 10);
     if(!best.length) html += '<p style="color:var(--muted)">Todavia nada. A ganar partidos.</p>';
     for(i = 0; i < best.length; i++){
-      html += '<div class="trow"><div class="dates">' + TC.fmtDate(best[i].day) + '</div>' +
-        '<div class="tname">' + esc(best[i].name) + (best[i].champ ? ' 🏆' : '') + '</div>' +
-        resultChip(best[i]) +
-        '<div class="status"><b>' + best[i].pts + '</b> pts</div></div>';
+      html += resultRow(best[i]);
     }
 
     html += '<div style="margin-top:24px"><button class="btn ghost" id="btn-retire" style="color:var(--danger)">Retirarme del tenis (fin de carrera)</button></div>';
@@ -884,6 +907,20 @@ var UI = {};
       else if(d <= -0.01) inner = '<span class="adelta dn">▼' + Math.abs(d).toFixed(2) + '</span>';
     }
     return '<span class="adelta-slot">' + inner + '</span>';
+  }
+
+  // Fila de resultado con categoria, ronda, rival y marcador
+  function resultRow(r){
+    var detail = '';
+    if(r.vs){
+      detail = '<div style="font-size:11px;color:var(--muted);margin-top:2px">' +
+        (r.champ ? '🏆 Vencio a ' : 'Cayo con ') + esc(r.vs) + (r.sc ? ' · ' + esc(r.sc) : '') + '</div>';
+    }
+    return '<div class="trow"><div class="dates">' + TC.fmtDate(r.day) + '</div>' +
+      badgeHtml(r.cat) +
+      '<div class="tname">' + esc(r.name) + (r.champ ? ' 🏆' : '') + detail + '</div>' +
+      resultChip(r) +
+      '<div class="status"><b>' + r.pts + '</b> pts</div></div>';
   }
 
   // Chip con la ronda alcanzada en un resultado {cat, rw, champ}
@@ -908,7 +945,7 @@ var UI = {};
     return '<span class="rchip ' + cls + '">' + label + '</span>';
   }
 
-  function drawRankChart(){
+  function drawRankChart(hoverIdx){
     var cv = $('rankchart');
     if(!cv) return;
     var ctx = cv.getContext('2d');
@@ -978,6 +1015,54 @@ var UI = {};
     ctx.beginPath(); ctx.arc(X(last[0]), Y(last[1]), 3.5, 0, 7); ctx.fill();
     ctx.font = 'bold 11px Inter, sans-serif';
     ctx.fillText('#' + last[1], Math.min(X(last[0]) + 7, W - 40), Y(last[1]) - 6);
+
+    // hover: crosshair + cajita con ranking y fecha del punto apuntado
+    if(hoverIdx != null && data[hoverIdx]){
+      var hp = data[hoverIdx];
+      var hx = X(hp[0]), hy = Y(hp[1]);
+      ctx.strokeStyle = 'rgba(255,255,255,.25)';
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath(); ctx.moveTo(hx, padT); ctx.lineTo(hx, H - padB); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(hx, hy, 4.5, 0, 7); ctx.fill();
+      ctx.fillStyle = '#c8f31d';
+      ctx.beginPath(); ctx.arc(hx, hy, 3, 0, 7); ctx.fill();
+      var label = '#' + hp[1] + ' · ' + TC.fmtDate(hp[0]) + (hp[2] != null ? ' · ' + hp[2] + ' pts' : '');
+      ctx.font = 'bold 12px Inter, sans-serif';
+      var tw = ctx.measureText(label).width;
+      var bx = Math.max(padL, Math.min(hx - tw / 2 - 8, W - tw - 20));
+      var by = hy - 34 < padT ? hy + 12 : hy - 34;
+      ctx.fillStyle = 'rgba(10,14,18,.95)';
+      ctx.strokeStyle = 'rgba(255,255,255,.2)';
+      roundRect(ctx, bx, by, tw + 16, 22, 6);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#eef2f7';
+      ctx.fillText(label, bx + 8, by + 15);
+    }
+
+    // interaccion: buscar el punto mas cercano al mouse
+    cv.onmousemove = function(e){
+      var rect = cv.getBoundingClientRect();
+      var mx = (e.clientX - rect.left) * (cv.width / rect.width);
+      var bestI = null, bestD = 28;
+      for(var i = 0; i < data.length; i++){
+        var d = Math.abs(X(data[i][0]) - mx);
+        if(d < bestD){ bestD = d; bestI = i; }
+      }
+      if(bestI !== hoverIdx) drawRankChart(bestI);
+    };
+    cv.onmouseleave = function(){ drawRankChart(); };
+  }
+
+  function roundRect(ctx, x, y, w, h, r){
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
   }
 
   // ================= RANKING =================
@@ -1089,6 +1174,8 @@ var UI = {};
     panel.onclick = function(e){
       var t = e.target;
       if(t.dataset.filter){ calFilter = t.dataset.filter; render(); return; }
+      if(t.dataset.cmonth != null){ calMonth = t.dataset.cmonth === 'all' ? 'all' : parseInt(t.dataset.cmonth, 10); render(); return; }
+      if(t.dataset.csurf){ calSurf = t.dataset.csurf; render(); return; }
       if(t.dataset.crange){ chartRange = t.dataset.crange; render(); return; }
       if(t.dataset.ayear){ archiveYear = parseInt(t.dataset.ayear, 10); render(); return; }
       if(t.dataset.amonth != null){ archiveMonth = t.dataset.amonth === 'all' ? 'all' : parseInt(t.dataset.amonth, 10); render(); return; }
@@ -1211,15 +1298,12 @@ var UI = {};
     var recent = (p.results || []).slice(-6).reverse();
     var resHtml = '';
     for(i = 0; i < recent.length; i++){
-      resHtml += '<div class="trow" style="padding:4px 10px"><div class="dates">' + TC.fmtDate(recent[i].day) + '</div>' +
-        '<div class="tname" style="font-weight:400">' + esc(recent[i].name) + (recent[i].champ ? ' 🏆' : '') + '</div>' +
-        resultChip(recent[i]) +
-        '<div class="status"><b>' + recent[i].pts + '</b> pts</div></div>';
+      resHtml += resultRow(recent[i]);
     }
     openModal(
       '<div>' +
         '<h2>' + esc(p.name) + (id === S.humanId ? ' <span style="color:var(--accent);font-size:13px">(vos)</span>' : '') + '</h2>' +
-        '<div class="modal-note" style="margin-top:2px">' + p.country + ' · ' + p.age + ' anios · ' + (p.hand === 'Z' ? 'Zurdo' : 'Diestro') + ' · Prefiere ' + surfHtml(p.pref) +
+        '<div class="modal-note" style="margin-top:2px">' + p.country + ' · ' + p.age + ' anios · ' + (p.ht ? (p.ht / 100).toFixed(2) + 'm · ' : '') + (p.hand === 'Z' ? 'Zurdo' : 'Diestro') + ' · Prefiere ' + surfHtml(p.pref) +
           ' · Nivel <span class="stars">' + starsOf(p) + '</span>' +
           (!p.isHuman && p.pot != null && p.age <= 23 ? ' · Potencial <span class="stars">' + starsVal(p.pot) + '</span>' : '') +
           (p.injury ? ' · <span style="color:var(--danger)">Lesionado: ' + esc(p.injury.name) + ' (' + p.injury.days + 'd)</span>' : '') + '</div>' +

@@ -41,8 +41,17 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     var surfs = ['hard','hard','clay','clay','grass','indoor','all'];
     p.pref = surfs[Math.floor(rng() * surfs.length)];
     p.hand = rng() < 0.13 ? 'Z' : 'D'; // ~13% zurdos, como en el circuito real
+    p.ht = rollHeight(rng);
     return p;
   }
+
+  // Altura en cm: campana alrededor de 1.85 con alguna torre ocasional
+  function rollHeight(rng){
+    var ht = Math.round(184 + (rng() + rng() - 1) * 15);
+    if(rng() < 0.06) ht += 6 + Math.round(rng() * 6); // los sacadores gigantes existen
+    return Math.max(165, Math.min(211, ht));
+  }
+  TC._rollHeight = rollHeight;
 
   // Potencial: techo de nivel sorteado por partida. Estrellas con rango chico,
   // desconocidos con rango amplio (y a veces una joya oculta). declAge: cuando arranca el declive.
@@ -65,7 +74,7 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
       var r = TC.ROSTER[i];
       var p = {id: players.length, name: r.n, country: r.c, real: true,
                age: Math.floor(rnd(rng, 22, 33)), pref: r.pref,
-               hand: rng() < 0.13 ? 'Z' : 'D'};
+               hand: rng() < 0.13 ? 'Z' : 'D', ht: rollHeight(rng)};
       for(var a = 0; a < ATTRS.length; a++) p[ATTRS[a]] = r[ATTRS[a]];
       players.push(p);
     }
@@ -334,7 +343,7 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
   // ================== PARTIDOS ==================
   function playerForMatch(p){
     return {fh:p.fh, bh:p.bh, vol:p.vol, dro:p.dro, spd:p.spd, sta:p.sta, srv:p.srv,
-            pow:p.pow, ret:p.ret, con:p.con, pref:p.pref, form:p.form, energy:p.energy, hand:p.hand};
+            pow:p.pow, ret:p.ret, con:p.con, pref:p.pref, form:p.form, energy:p.energy, hand:p.hand, ht:p.ht};
   }
 
   function scoreString(result, winnerFirst){
@@ -434,7 +443,7 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
   }
 
   // ================== RONDAS ==================
-  function awardResult(state, pid, inst, roundsWon, isChampion){
+  function awardResult(state, pid, inst, roundsWon, isChampion, rec){
     var cat = TC.CATS[inst.cat];
     var pts = 0;
     if(inst.cat === 'FINALS'){ pts = TC.finalsPoints(inst, pid); }
@@ -443,7 +452,16 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
       pts = arr[Math.min(roundsWon, arr.length - 1)] || 0;
     }
     var p = state.players[pid];
-    p.results.push({day: state.day, pts: pts, tid: inst.id, name: inst.name, cat: inst.cat, rw: roundsWon, champ: !!isChampion});
+    var entry = {day: state.day, pts: pts, tid: inst.id, name: inst.name, cat: inst.cat, rw: roundsWon, champ: !!isChampion};
+    // para el humano guardamos el detalle del ultimo partido (rival y marcador)
+    if(pid === state.humanId && rec && rec.p){
+      var oppId = rec.p[0] === pid ? rec.p[1] : rec.p[0];
+      if(oppId != null){
+        entry.vs = state.players[oppId].name;
+        entry.sc = rec.sc || (rec.wo ? 'W.O.' : '');
+      }
+    }
+    p.results.push(entry);
     p.curT = null;
     if(isChampion){
       p.titles++;
@@ -535,11 +553,11 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
       // el perdedor queda eliminado: puntos por ronda alcanzada
       var loser = null;
       if(rec.p[0] != null && rec.p[1] != null){ loser = rec.p[0] === rec.w ? rec.p[1] : rec.p[0]; }
-      if(loser != null) awardResult(state, loser, inst, rIdx, false);
+      if(loser != null) awardResult(state, loser, inst, rIdx, false, rec);
     }
     inst.currentRound = rIdx + 1;
     if(winners.length === 1){
-      if(winners[0] != null) awardResult(state, winners[0], inst, nR, true);
+      if(winners[0] != null) awardResult(state, winners[0], inst, nR, true, records[0]);
       inst.done = true;
       inst.championId = winners[0];
       // finalista para el archivo
@@ -631,7 +649,7 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
         // otorgar puntos a los 8
         var all = inst.groups[0].concat(inst.groups[1]);
         for(var k = 0; k < all.length; k++){
-          awardResult(state, all[k], inst, 0, all[k] === w);
+          awardResult(state, all[k], inst, 0, all[k] === w, rec.p.indexOf(all[k]) >= 0 ? rec : null);
         }
         inst.championId = w;
         archivePush(state, inst, rec.p[0] === w ? rec.p[1] : rec.p[0]);
@@ -883,11 +901,12 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
           for(k = 0; k < 2; k++) bumpRandomAttr(p, Math.min(0.15, gapY * 0.08) + rng() * 0.05, rng);
         }
       }
-      // retiros: renace como juvenil
+      // retiros: renace como juvenil del mismo pais (la nueva generacion)
       if(p.age > 36 || (p.age > 33 && TC.overall(p) < 5.4 && p.rank > 400)){
-        var nm = TC.genName(rng);
+        var peakOv = TC.overall(p); // el nivel que tuvo el que se va
+        var nm = TC.genNameFor(p.country, rng);
         var was = p.name;
-        p.name = nm.name; p.country = nm.country; p.age = 17; p.real = false;
+        p.name = nm.name; p.age = 17; p.real = false; // p.country se mantiene
         var base = 3.8 + rng() * 1.9;
         for(k = 0; k < ATTRS.length; k++){
           p[ATTRS[k]] = Math.round(Math.max(1.5, base + (rng() * 2.2 - 1.1)) * 10) / 10;
@@ -895,10 +914,15 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
         var surfs = ['hard','hard','clay','clay','grass','indoor','all'];
         p.pref = surfs[Math.floor(rng() * surfs.length)];
         p.hand = rng() < 0.13 ? 'Z' : 'D';
+        p.ht = rollHeight(rng);
         p.results = []; p.pts = 0; p.rank = 9999; p.wins = 0; p.losses = 0; p.titles = 0;
         p.form = 0; p.energy = 100; p.injury = null; p.curT = null;
-        assignPotential(p, rng); // el juvenil que lo reemplaza sortea su propio destino
-        if(!state.presim && was) pushNews(state, was + ' se retira del circuito', false);
+        assignPotential(p, rng); // sortea su propio destino...
+        // ...pero a veces la promesa del pais apunta al nivel del que se retiro
+        if(rng() < 0.35){
+          p.pot = Math.min(9.6, Math.max(p.pot, Math.round((peakOv - 0.8 + rng() * 1.2) * 100) / 100));
+        }
+        if(!state.presim && was) pushNews(state, was + ' se retira del circuito. En ' + p.country + ' ya suena su relevo: ' + p.name, false);
       }
     }
   }
