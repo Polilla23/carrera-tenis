@@ -259,6 +259,18 @@ table.rank td.num { color: var(--muted); width: 44px; font-weight: 800; font-fam
 .mv { font-size: 11px; margin-left: 6px; font-weight: 700; }
 .mv.up { color: var(--accent2); } .mv.dn { color: var(--danger); }
 .sep-row td { text-align: center; color: var(--muted); padding: 5px; border: none; }
+/* tooltips propios (los title nativos desaparecen al hacer click) */
+[data-tip] { position: relative; }
+[data-tip]:hover::after {
+  content: attr(data-tip);
+  position: absolute; bottom: 135%; left: 50%; transform: translateX(-50%);
+  background: #0d1319; border: 1px solid var(--line2); color: var(--text);
+  padding: 6px 10px; border-radius: 8px; font-size: 11px; font-weight: 600;
+  width: max-content; max-width: 250px; text-align: left; line-height: 1.4;
+  z-index: 60; pointer-events: none; box-shadow: 0 6px 20px rgba(0,0,0,.5);
+  text-transform: none; letter-spacing: 0;
+}
+
 .plink { cursor: pointer; }
 .plink:hover { text-decoration: underline; text-decoration-color: var(--muted); }
 .meplink { color: var(--accent); }

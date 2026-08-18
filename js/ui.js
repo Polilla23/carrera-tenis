@@ -14,6 +14,17 @@ var UI = {};
   function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
   var SURF_LABEL = {clay:'Polvo', hard:'Dura', grass:'Hierba', indoor:'Indoor', all:'Neutral'};
+  var SURF_COLOR = {clay:'var(--clay)', hard:'var(--hard)', grass:'var(--grass)', indoor:'var(--indoor)', all:'var(--muted)'};
+
+  // punto de superficie con tooltip CSS (los title nativos se esconden al hacer click)
+  function sdotHtml(s){
+    return '<span class="sdot ' + s + '" data-tip="Superficie: ' + SURF_LABEL[s] + '"></span>';
+  }
+  // nombre de superficie con su color y puntito
+  function surfHtml(s){
+    var dot = s === 'all' ? '' : '<span class="sdot ' + s + '" style="display:inline-block;vertical-align:-1px;margin-right:5px"></span>';
+    return dot + '<span style="color:' + SURF_COLOR[s] + ';font-weight:700">' + SURF_LABEL[s] + '</span>';
+  }
 
   UI.init = function(){
     app = $('app');
@@ -274,7 +285,7 @@ var UI = {};
       html += '<div class="trow s-' + e.surf + mine + '">' +
         '<div class="dates">' + TC.fmtRange(e.startDay, e.startDay + e.dur - 1) + '</div>' +
         '<span class="badge" style="background:' + cat.color + '">' + esc(cat.label) + '</span>' +
-        '<span class="sdot ' + e.surf + '"></span>' +
+        sdotHtml(e.surf) +
         '<div class="tname' + (hasData ? ' tlink" data-adetail="' + e.instId + '" title="Ver cuadro"' : '"') + '>' + esc(e.name) + '</div>' +
         '<div class="status">🏆 ' + archiveName(e.champId, e.champ, true) +
           (e.runner ? ' <span style="opacity:.65">d. ' + archiveName(e.runnerId, e.runner, false) + '</span>' : '') + '</div>' +
@@ -419,7 +430,7 @@ var UI = {};
     return '<div class="trow s-' + d.surf + (isNow?' now':'') + (isReg?' reg':'') + '">' +
       '<div class="dates">' + TC.fmtRange(d.startDay, d.startDay + d.dur - 1) + '</div>' +
       badgeHtml(d.cat) +
-      '<span class="sdot ' + d.surf + '" title="' + SURF_LABEL[d.surf] + '"></span>' +
+      sdotHtml(d.surf) +
       '<div class="tname tlink" data-detail="' + d.id + '" title="Ver detalle del torneo">' + esc(d.name) + '</div>' +
       '<div class="status">' + status + '</div>' + btn +
     '</div>';
@@ -782,7 +793,7 @@ var UI = {};
       stat(S.career.titles.length, 'Titulos') +
       stat('<span class="stars">' + starsOf(h) + '</span>', 'Calidad') +
       stat(TC.overall(h).toFixed(2), 'Nivel general') +
-      stat(SURF_LABEL[h.pref], 'Superficie') +
+      stat(surfHtml(h.pref), 'Superficie') +
       stat(h.hand === 'Z' ? 'Zurdo' : 'Diestro', 'Mano') +
       '</div>';
 
@@ -1123,7 +1134,7 @@ var UI = {};
     openModal(
       '<div>' +
         '<h2>' + esc(p.name) + (id === S.humanId ? ' <span style="color:var(--accent);font-size:13px">(vos)</span>' : '') + '</h2>' +
-        '<div class="modal-note" style="margin-top:2px">' + p.country + ' · ' + p.age + ' anios · ' + (p.hand === 'Z' ? 'Zurdo' : 'Diestro') + ' · Prefiere ' + SURF_LABEL[p.pref] +
+        '<div class="modal-note" style="margin-top:2px">' + p.country + ' · ' + p.age + ' anios · ' + (p.hand === 'Z' ? 'Zurdo' : 'Diestro') + ' · Prefiere ' + surfHtml(p.pref) +
           ' · Nivel <span class="stars">' + starsOf(p) + '</span>' +
           (!p.isHuman && p.pot != null && p.age <= 23 ? ' · Potencial <span class="stars">' + starsVal(p.pot) + '</span>' : '') +
           (p.injury ? ' · <span style="color:var(--danger)">Lesionado: ' + esc(p.injury.name) + ' (' + p.injury.days + 'd)</span>' : '') + '</div>' +
@@ -1175,7 +1186,7 @@ var UI = {};
           '<div class="f2f-vs">VS</div>' +
           '<div class="f2f-p"><div class="nm plink" data-player="' + opp.id + '" title="Ver ficha">' + esc(opp.name) + '</div>' +
             '<div class="meta">' + (opp.rank === 9999 ? 'NR' : '#' + opp.rank) + ' · ' + opp.country + ' · ' + opp.age + ' anios</div>' +
-            '<div class="meta">Nivel <span class="stars">' + starsOf(opp) + '</span> · Prefiere ' + SURF_LABEL[opp.pref] + '</div></div>' +
+            '<div class="meta">Nivel <span class="stars">' + starsOf(opp) + '</span> · Prefiere ' + surfHtml(opp.pref) + '</div></div>' +
         '</div>' +
         (h.energy < 30 ? '<div class="injury-note">⚠️ Estas fundido (' + Math.round(h.energy) + '%): jugar asi multiplica el riesgo de una lesion de meses</div>' : '') +
         '<div class="modal-actions">' +
