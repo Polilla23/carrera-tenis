@@ -40,6 +40,7 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     }
     var surfs = ['hard','hard','clay','clay','grass','indoor','all'];
     p.pref = surfs[Math.floor(rng() * surfs.length)];
+    p.hand = rng() < 0.13 ? 'Z' : 'D'; // ~13% zurdos, como en el circuito real
     return p;
   }
 
@@ -63,7 +64,8 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     for(var i = 0; i < TC.ROSTER.length; i++){
       var r = TC.ROSTER[i];
       var p = {id: players.length, name: r.n, country: r.c, real: true,
-               age: Math.floor(rnd(rng, 22, 33)), pref: r.pref};
+               age: Math.floor(rnd(rng, 22, 33)), pref: r.pref,
+               hand: rng() < 0.13 ? 'Z' : 'D'};
       for(var a = 0; a < ATTRS.length; a++) p[ATTRS[a]] = r[ATTRS[a]];
       players.push(p);
     }
@@ -261,7 +263,7 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
   // ================== PARTIDOS ==================
   function playerForMatch(p){
     return {fh:p.fh, bh:p.bh, vol:p.vol, dro:p.dro, spd:p.spd, sta:p.sta, srv:p.srv,
-            pow:p.pow, ret:p.ret, con:p.con, pref:p.pref, form:p.form, energy:p.energy};
+            pow:p.pow, ret:p.ret, con:p.con, pref:p.pref, form:p.form, energy:p.energy, hand:p.hand};
   }
 
   function scoreString(result, winnerFirst){
@@ -662,16 +664,16 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
       var p = ps[i];
       if(p.injury){
         p.injury.days--;
-        p.energy = Math.min(100, p.energy + 4);
+        // parado se recupera lento, y el fisico se atrofia dia a dia
+        p.energy = Math.min(100, p.energy + 2.5);
+        p.spd = Math.max(1, Math.round((p.spd - 0.004) * 10000) / 10000);
+        p.sta = Math.max(1, Math.round((p.sta - 0.004) * 10000) / 10000);
+        p.con = Math.max(1, Math.round((p.con - 0.0015) * 10000) / 10000);
         if(p.injury.days <= 0){
-          // las lesiones largas dejan secuela fisica
-          if((p.injury.total || 0) >= 21){
-            p.spd = Math.max(1, Math.round((p.spd - 0.06) * 100) / 100);
-            p.sta = Math.max(1, Math.round((p.sta - 0.06) * 100) / 100);
-          }
-          if(i === state.humanId) pushNews(state, 'Te recuperaste de la lesion. A jugar!', true);
+          if(i === state.humanId) pushNews(state, 'Te recuperaste de la lesion. Volves a media maquina: cuidate unos dias.', true);
           p.injury = null;
           p.form = Math.max(-1, p.form - 0.2);
+          p.energy = Math.min(p.energy, 55); // nadie vuelve al 100% de una lesion
         }
         continue;
       }
@@ -753,14 +755,15 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     }
     if(state.action === 'train'){
       var focus = state.trainFocus || 'fh';
-      // entrenar te deja en ~68-75 de energia: sostenible, pero no tan fresco como descansar
-      p.energy = Math.max(0, Math.min(100, p.energy + (68 - p.energy) * 0.10));
+      // entrenar cansa de verdad: no se puede entrenar infinito sin descansar
+      p.energy = Math.max(0, p.energy - 2.2);
       var ageF = p.age <= 20 ? 2.2 : (p.age <= 24 ? 1.4 : (p.age <= 28 ? 0.8 : (p.age <= 31 ? 0.35 : 0.12)));
       var curve = Math.max(0.1, (10.2 - p[focus]) / 6);
-      var tired = p.energy < 20 ? 0.4 : 1;
-      p[focus] = Math.min(9.8, Math.round((p[focus] + 0.006 * ageF * curve * tired) * 10000) / 10000);
+      // cuanto mas fundido, menos rinde el entrenamiento
+      var eff = 0.4 + 0.6 * Math.min(1, p.energy / 55);
+      p[focus] = Math.min(9.8, Math.round((p[focus] + 0.006 * ageF * curve * eff) * 10000) / 10000);
       // entrenar fundido puede lesionar
-      if(p.energy < 15 && rng() < 0.01){
+      if(p.energy < 20 && rng() < 0.012){
         p.injury = rollInjury(rng);
         pushNews(state, 'Te lesionaste entrenando fundido: ' + p.injury.name + ' (' + p.injury.days + ' dias)', true);
       }
@@ -818,6 +821,7 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
         }
         var surfs = ['hard','hard','clay','clay','grass','indoor','all'];
         p.pref = surfs[Math.floor(rng() * surfs.length)];
+        p.hand = rng() < 0.13 ? 'Z' : 'D';
         p.results = []; p.pts = 0; p.rank = 9999; p.wins = 0; p.losses = 0; p.titles = 0;
         p.form = 0; p.energy = 100; p.injury = null; p.curT = null;
         assignPotential(p, rng); // el juvenil que lo reemplaza sortea su propio destino

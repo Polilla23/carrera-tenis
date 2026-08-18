@@ -149,6 +149,14 @@ h3.section:first-child { margin-top: 0; }
 }
 .chip:hover { color: var(--text); }
 .chip.on { background: var(--accent); color: #131a03; border-color: var(--accent); box-shadow: 0 0 16px var(--accent-glow); }
+/* leyenda de categorias */
+details.legend { background: rgba(0,0,0,.28); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; }
+details.legend summary { cursor: pointer; color: var(--muted); font-size: 12px; font-weight: 700; }
+.legend-row { display: flex; align-items: center; gap: 12px; padding: 6px 0 6px 8px; border-bottom: 1px solid var(--line); }
+.legend-row:last-child { border-bottom: none; }
+.legend-desc { flex: 1; font-size: 12px; color: var(--muted); }
+.legend-pts { font-size: 12px; font-weight: 800; color: var(--gold); white-space: nowrap; }
+
 .month-head { font-size: 24px; margin: 22px 0 10px; display: flex; align-items: center; gap: 10px; }
 .month-head::before { content: ''; width: 5px; height: 22px; background: var(--accent); border-radius: 3px; box-shadow: 0 0 12px var(--accent-glow); }
 .trow {

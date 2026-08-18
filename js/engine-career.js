@@ -52,7 +52,7 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     var h = {id: state.players.length, name: cfg.name, country: cfg.country, age: 17, real: false,
              pref: cfg.pref || 'hard', energy: 100, form: 0, injury: null,
              results: [], pts: 0, rank: 9999, prevRank: 9999, wins: 0, losses: 0, titles: 0, curT: null,
-             isHuman: true};
+             isHuman: true, hand: cfg.hand === 'Z' ? 'Z' : 'D'};
     var k;
     if(cfg.attrs){
       // atributos armados a mano: respetar limites por stat y presupuesto global
@@ -126,6 +126,26 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
   }
   TC.findDef = findDef;
   TC.findActive = findActive;
+
+  // Aviso de dificultad: compara tu nivel contra el cuadro estimado del torneo
+  TC.registerAdvice = function(state, def){
+    var h = state.players[state.humanId];
+    var ids = TC.previewEntrants(state, def);
+    var myOv = TC.overall(h);
+    var better = 0, n = 0;
+    for(var i = 0; i < ids.length; i++){
+      if(ids[i] === state.humanId || ids[i] == null) continue;
+      n++;
+      if(TC.overall(state.players[ids[i]]) > myOv) better++;
+    }
+    if(n < 8) return null;
+    var pct = Math.round(better / n * 100);
+    if(pct >= 80) return {level:'hard', pct: pct,
+      msg:'Cuadro muy dificil: el ' + pct + '% de los inscriptos juega mejor que vos. Lo mas probable es que pierdas temprano.'};
+    if(pct <= 15) return {level:'easy', pct: pct,
+      msg:'Estas sobreclasificado: solo el ' + pct + '% del cuadro esta a tu altura o mejor. Vas a ganar pocos puntos para tu nivel.'};
+    return null;
+  };
 
   TC.register = function(state, defId){
     var def = findDef(state, defId);
@@ -248,6 +268,13 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
         var rng = TC.mulberry32((state.seed || 1) ^ 0xBADA55);
         for(var i = 0; i < state.players.length; i++){
           if(!state.players[i].isHuman) TC._assignPotential(state.players[i], rng);
+        }
+      }
+      // compat: mano habil
+      if(state.players && state.players.length && state.players[0].hand === undefined){
+        var rng2 = TC.mulberry32((state.seed || 1) ^ 0x1E77);
+        for(var j = 0; j < state.players.length; j++){
+          state.players[j].hand = state.players[j].isHuman ? 'D' : (rng2() < 0.13 ? 'Z' : 'D');
         }
       }
       return state;

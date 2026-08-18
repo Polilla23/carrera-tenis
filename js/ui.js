@@ -7,6 +7,7 @@ var UI = {};
   var detailId = null;       // torneo abierto en el visor de detalle (def del calendario)
   var archInstId = null;     // torneo abierto desde el archivo (instancia)
   var archiveYear = null;    // anio seleccionado en el archivo
+  var chartRange = '1y';     // rango del grafico de ranking: 3m | 1y | all
   var app;
 
   function $(id){ return document.getElementById(id); }
@@ -48,7 +49,7 @@ var UI = {};
   }
 
   // ================= CREACION =================
-  var createCfg = {archetype:'completo', pref:'hard', name:'', country:'ARG', attrs:null};
+  var createCfg = {archetype:'completo', pref:'hard', name:'', country:'ARG', attrs:null, hand:'D'};
   function keepCreateInputs(){
     var n = $('c-name'), c = $('c-country');
     if(n) createCfg.name = n.value;
@@ -110,6 +111,10 @@ var UI = {};
           '<div class="budget-line">Puntos usados: <b id="budget-used">' + cfgSum().toFixed(1) + '</b> / ' + TC.ATTR_BUDGET + '</div>' +
         '</div>' +
         '<div class="form-row"><label>Superficie preferida</label><div class="surf-row" id="surf-row">' + surfs + '</div></div>' +
+        '<div class="form-row"><label>Mano habil</label><div class="surf-row" id="hand-row">' +
+          '<button class="surf-btn' + (createCfg.hand === 'D' ? ' sel' : '') + '" data-hand="D">Diestro</button>' +
+          '<button class="surf-btn' + (createCfg.hand === 'Z' ? ' sel' : '') + '" data-hand="Z">Zurdo</button>' +
+        '</div></div>' +
         '<div style="display:flex;gap:10px;margin-top:22px">' +
           '<button class="btn" id="c-back">Volver</button>' +
           '<button class="btn primary" style="flex:1;padding:12px" id="c-go">Empezar carrera (17 anios)</button>' +
@@ -140,6 +145,13 @@ var UI = {};
       createCfg.pref = b.dataset.surf;
       showCreate();
     };
+    $('hand-row').onclick = function(e){
+      var b = e.target.closest('.surf-btn');
+      if(!b) return;
+      keepCreateInputs();
+      createCfg.hand = b.dataset.hand;
+      showCreate();
+    };
     $('c-back').onclick = showMenu;
     $('c-go').onclick = function(){
       if(cfgSum() > TC.ATTR_BUDGET + 0.001) return;
@@ -149,7 +161,7 @@ var UI = {};
       for(var k in cfgAttrs()) attrsCopy[k] = cfgAttrs()[k];
       app.innerHTML = '<div class="loading-screen"><div class="spinner"></div><div>Simulando la temporada previa del circuito...</div></div>';
       setTimeout(function(){
-        S = TC.newCareer({name:name, country:country, archetype:createCfg.archetype, pref:createCfg.pref, attrs:attrsCopy});
+        S = TC.newCareer({name:name, country:country, archetype:createCfg.archetype, pref:createCfg.pref, attrs:attrsCopy, hand:createCfg.hand});
         TC.save(S);
         startGame();
       }, 60);
@@ -309,11 +321,50 @@ var UI = {};
     return ['ITF25','ITF15','CH75'].indexOf(cat) >= 0;
   }
 
+  // Descripcion de cada categoria para tooltips y leyenda
+  var CAT_DIFF = {
+    ITF15:  'El escalon de entrada: juveniles y jugadores fuera del top 450.',
+    ITF25:  'Futures fuertes: nivel de rank 300-700.',
+    CH75:   'Challengers chicos: nivel de rank 200-500.',
+    CH125:  'Challengers grandes: nivel de rank 100-350.',
+    '250':  'Circuito ATP: nivel top 150.',
+    '500':  'Torneos grandes del tour: nivel top 80.',
+    M1000:  'Los nueve Masters: nivel top 85, casi todos los cracks.',
+    GS:     'Los cuatro grandes: top 110, al mejor de 5 sets.',
+    FINALS: 'Solo los 8 mejores del mundo.'
+  };
+  function badgeTitle(catKey){
+    var cat = TC.CATS[catKey];
+    var champ = catKey === 'FINALS' ? 1500 : cat.pts[cat.pts.length - 1];
+    return cat.label + ' — Campeon: ' + champ + ' pts. ' + (CAT_DIFF[catKey] || '');
+  }
+  function badgeHtml(catKey){
+    var cat = TC.CATS[catKey];
+    return '<span class="badge" style="background:' + cat.color + '" title="' + esc(badgeTitle(catKey)) + '">' + esc(cat.label) + '</span>';
+  }
+
   function renderCalendar(){
     var filters = [['auto','Para mi nivel'],['all','Todos'],['atp','ATP'],['ch','Challenger'],['itf','ITF']];
     var html = '<div class="cal-filters">' + filters.map(function(f){
       return '<button class="chip' + (calFilter===f[0]?' on':'') + '" data-filter="' + f[0] + '">' + f[1] + '</button>';
     }).join('') + '</div>';
+
+    // leyenda de categorias, de mas facil a mas dificil
+    html += '<details class="legend"><summary>¿Que significa cada categoria? (de mas facil a mas dificil)</summary>';
+    var order = ['ITF15','ITF25','CH75','CH125','250','500','M1000','GS','FINALS'];
+    for(var li = 0; li < order.length; li++){
+      var ck = order[li], cat = TC.CATS[ck];
+      var champPts = ck === 'FINALS' ? 1500 : cat.pts[cat.pts.length - 1];
+      html += '<div class="legend-row">' + badgeHtml(ck) +
+        '<span class="legend-desc">' + esc(CAT_DIFF[ck]) + '</span>' +
+        '<span class="legend-pts">🏆 ' + champPts + ' pts</span></div>';
+    }
+    html += '<div class="legend-row" style="border-top:1px solid var(--line);margin-top:4px">' +
+      '<span style="font-size:12px;color:var(--muted);font-weight:700">Superficies:</span>' +
+      ['clay','hard','grass','indoor'].map(function(s){
+        return '<span style="display:inline-flex;align-items:center;gap:5px;font-size:12px"><span class="sdot ' + s + '"></span>' + SURF_LABEL[s] + '</span>';
+      }).join('') + '</div>';
+    html += '</details>';
 
     var byMonth = {};
     for(var i = 0; i < S.schedule.length; i++){
@@ -367,7 +418,7 @@ var UI = {};
 
     return '<div class="trow s-' + d.surf + (isNow?' now':'') + (isReg?' reg':'') + '">' +
       '<div class="dates">' + TC.fmtRange(d.startDay, d.startDay + d.dur - 1) + '</div>' +
-      '<span class="badge" style="background:' + cat.color + '">' + esc(cat.label) + '</span>' +
+      badgeHtml(d.cat) +
       '<span class="sdot ' + d.surf + '" title="' + SURF_LABEL[d.surf] + '"></span>' +
       '<div class="tname tlink" data-detail="' + d.id + '" title="Ver detalle del torneo">' + esc(d.name) + '</div>' +
       '<div class="status">' + status + '</div>' + btn +
@@ -644,8 +695,11 @@ var UI = {};
     if(!def.started){
       var chk = TC.canRegister(S, def);
       var isReg = S.registrations.indexOf(def.id) >= 0;
-      if(isReg) html += '<div class="next-match">Estas inscripto. <button class="btn small" data-unreg="' + def.id + '" style="margin-left:10px">Bajarse</button></div>';
-      else if(chk.ok) html += '<div class="next-match">Inscripcion abierta. <button class="btn small primary" data-reg="' + def.id + '" style="margin-left:10px">Inscribirse</button></div>';
+      var adv = TC.registerAdvice(S, def);
+      var advHtml = adv ? '<div style="color:' + (adv.level === 'hard' ? 'var(--danger)' : 'var(--warn)') + ';font-size:12px;font-weight:700;margin-top:6px">' +
+        (adv.level === 'hard' ? '⚠️ ' : '💤 ') + esc(adv.msg) + '</div>' : '';
+      if(isReg) html += '<div class="next-match"><div>Estas inscripto.' + advHtml + '</div><div class="spacer"></div><button class="btn small" data-unreg="' + def.id + '">Bajarse</button></div>';
+      else if(chk.ok) html += '<div class="next-match"><div>Inscripcion abierta.' + advHtml + '</div><div class="spacer"></div><button class="btn small primary" data-reg="' + def.id + '">Inscribirse</button></div>';
       else html += '<div class="next-match" style="color:var(--muted)">' + chk.reason + '</div>';
     } else if(inst && inst.done){
       html += '<div class="champ-banner">🏆 Campeon: ' + playerName(inst.championId, true) + '</div>';
@@ -728,9 +782,16 @@ var UI = {};
       stat(S.career.titles.length, 'Titulos') +
       stat(TC.overall(h).toFixed(2), 'Nivel general') +
       stat(SURF_LABEL[h.pref], 'Superficie') +
+      stat(h.hand === 'Z' ? 'Zurdo' : 'Diestro', 'Mano') +
       '</div>';
 
-    html += '<h3 class="section">Ranking ultimo anio</h3><canvas id="rankchart" width="900" height="140"></canvas>';
+    html += '<h3 class="section">Evolucion del ranking</h3>' +
+      '<div class="cal-filters" style="margin-bottom:8px">' +
+        [['3m','3 meses'],['1y','1 anio'],['all','Toda la carrera']].map(function(r){
+          return '<button class="chip' + (chartRange === r[0] ? ' on' : '') + '" data-crange="' + r[0] + '">' + r[1] + '</button>';
+        }).join('') +
+      '</div>' +
+      '<canvas id="rankchart" width="1000" height="170"></canvas>';
 
     html += '<h3 class="section">Atributos — hace click para elegir el foco de entrenamiento (variacion del ultimo mes)</h3><div class="attr-grid">';
     for(var i = 0; i < TC.ATTRS.length; i++){
@@ -799,27 +860,71 @@ var UI = {};
     if(!cv) return;
     var ctx = cv.getContext('2d');
     var W = cv.width, H = cv.height;
+    var padL = 46, padR = 14, padT = 12, padB = 24;
     ctx.clearRect(0, 0, W, H);
-    var data = S.rankHistory.filter(function(d){ return d[1] != null && d[0] > S.day - 364; });
+
+    var span = chartRange === '3m' ? 91 : (chartRange === '1y' ? 364 : 99999);
+    var data = S.rankHistory.filter(function(d){ return d[1] != null && d[0] > S.day - span; });
     if(data.length < 2){
-      ctx.fillStyle = '#8494ab'; ctx.font = '13px sans-serif';
-      ctx.fillText('Aun no hay historial de ranking', 20, H / 2);
+      ctx.fillStyle = '#8494ab'; ctx.font = '13px Inter, sans-serif';
+      ctx.fillText('Aun no hay historial de ranking en este periodo', 20, H / 2);
       return;
     }
     var minR = Infinity, maxR = 0;
     data.forEach(function(d){ minR = Math.min(minR, d[1]); maxR = Math.max(maxR, d[1]); });
-    minR = Math.max(1, minR - 5); maxR = maxR + 10;
+    minR = Math.max(1, minR - 3); maxR = maxR + 5;
     var x0 = data[0][0], x1 = data[data.length - 1][0];
-    ctx.strokeStyle = '#c3f53c'; ctx.lineWidth = 2; ctx.beginPath();
+    function X(day){ return padL + (W - padL - padR) * (day - x0) / Math.max(1, x1 - x0); }
+    function Y(rank){ return padT + (H - padT - padB) * (rank - minR) / Math.max(1, maxR - minR); }
+
+    // grilla horizontal: mejor / medio / peor
+    var gridRanks = [minR, Math.round((minR + maxR) / 2), maxR];
+    ctx.strokeStyle = 'rgba(255,255,255,.07)'; ctx.fillStyle = '#8494ab'; ctx.font = '10px Inter, sans-serif';
+    gridRanks.forEach(function(r){
+      var y = Y(r);
+      ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
+      ctx.fillText('#' + r, 6, y + 3);
+    });
+
+    // ticks del eje X segun el rango: meses o anios
+    var d0 = TC.dateOf(x0), d1 = TC.dateOf(x1);
+    var totalDays = x1 - x0;
+    var ticks = [];
+    if(totalDays <= 400){
+      // un tick por mes
+      var t = new Date(Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth() + 1, 1));
+      while(t <= d1){
+        ticks.push({day: TC.dayOf(t.getUTCFullYear(), t.getUTCMonth() + 1, 1),
+                    label: TC.MESES[t.getUTCMonth()].slice(0, 3) + (t.getUTCMonth() === 0 ? ' ' + String(t.getUTCFullYear()).slice(2) : '')});
+        t = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth() + 1, 1));
+      }
+      if(totalDays > 200){ ticks = ticks.filter(function(_, i){ return i % 2 === 0; }); }
+    } else {
+      // un tick por anio
+      for(var y2 = d0.getUTCFullYear() + 1; y2 <= d1.getUTCFullYear(); y2++){
+        ticks.push({day: TC.dayOf(y2, 1, 1), label: String(y2)});
+      }
+    }
+    ctx.strokeStyle = 'rgba(255,255,255,.05)';
+    ticks.forEach(function(tk){
+      var x = X(tk.day);
+      ctx.beginPath(); ctx.moveTo(x, padT); ctx.lineTo(x, H - padB); ctx.stroke();
+      ctx.fillText(tk.label, x - 10, H - 8);
+    });
+
+    // la linea de ranking
+    ctx.strokeStyle = '#c8f31d'; ctx.lineWidth = 2; ctx.beginPath();
     data.forEach(function(d, i){
-      var x = 10 + (W - 20) * (d[0] - x0) / Math.max(1, x1 - x0);
-      var y = 10 + (H - 30) * (d[1] - minR) / Math.max(1, maxR - minR);
-      if(i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      if(i === 0) ctx.moveTo(X(d[0]), Y(d[1])); else ctx.lineTo(X(d[0]), Y(d[1]));
     });
     ctx.stroke();
-    ctx.fillStyle = '#8494ab'; ctx.font = '11px sans-serif';
-    ctx.fillText('#' + minR, 12, 12);
-    ctx.fillText('#' + maxR, 12, H - 8);
+
+    // punto final + rank actual
+    var last = data[data.length - 1];
+    ctx.fillStyle = '#c8f31d';
+    ctx.beginPath(); ctx.arc(X(last[0]), Y(last[1]), 3.5, 0, 7); ctx.fill();
+    ctx.font = 'bold 11px Inter, sans-serif';
+    ctx.fillText('#' + last[1], Math.min(X(last[0]) + 7, W - 40), Y(last[1]) - 6);
   }
 
   // ================= RANKING =================
@@ -897,14 +1002,16 @@ var UI = {};
     var inTournament = h.curT != null;
 
     return '<div class="actionbar">' +
-      (inTournament || pending ?
+      (h.injury ?
+        '<span style="color:var(--danger);font-weight:700">🏥 Lesionado (' + h.injury.days + 'd) — solo queda recuperarse</span>'
+        : (inTournament || pending ?
         '<span style="color:var(--muted)">En torneo — sin entrenamientos</span>'
         :
         '<div class="seg" id="mode-seg">' +
           '<button data-mode="train" class="' + (S.action === 'train' ? 'on' : '') + '">Entrenar</button>' +
           '<button data-mode="rest" class="' + (S.action === 'rest' ? 'on' : '') + '">Descansar</button>' +
         '</div>' +
-        (S.action === 'train' ? '<select id="focus-sel">' + focusOpts + '</select>' : '')
+        (S.action === 'train' ? '<select id="focus-sel">' + focusOpts + '</select>' : ''))
       ) +
       (pending
         ? '<button class="advance-btn match" id="btn-advance">JUGAR ' + esc(pendingRoundLabel().toUpperCase()) + '</button>'
@@ -928,6 +1035,7 @@ var UI = {};
     panel.onclick = function(e){
       var t = e.target;
       if(t.dataset.filter){ calFilter = t.dataset.filter; render(); return; }
+      if(t.dataset.crange){ chartRange = t.dataset.crange; render(); return; }
       if(t.dataset.ayear){ archiveYear = parseInt(t.dataset.ayear, 10); render(); return; }
       if(t.id === 'btn-back-cal'){ detailId = null; render(); return; }
       if(t.id === 'btn-back-arch'){ archInstId = null; render(); return; }
@@ -936,6 +1044,11 @@ var UI = {};
       var dl = t.closest('[data-detail]');
       if(dl){ detailId = dl.dataset.detail; render(); return; }
       if(t.dataset.reg){
+        var def = TC.findDef(S, t.dataset.reg);
+        var adv = def ? TC.registerAdvice(S, def) : null;
+        if(adv && !confirm((adv.level === 'hard' ? '⚠️ ' : '💤 ') + adv.msg + '\n\nTe inscribis igual?')){
+          return;
+        }
         var r = TC.register(S, t.dataset.reg);
         if(!r.ok) alert(r.reason);
         TC.save(S); render(); return;
@@ -1008,7 +1121,7 @@ var UI = {};
     openModal(
       '<div>' +
         '<h2>' + esc(p.name) + (id === S.humanId ? ' <span style="color:var(--accent);font-size:13px">(vos)</span>' : '') + '</h2>' +
-        '<div class="modal-note" style="margin-top:2px">' + p.country + ' · ' + p.age + ' anios · Prefiere ' + SURF_LABEL[p.pref] +
+        '<div class="modal-note" style="margin-top:2px">' + p.country + ' · ' + p.age + ' anios · ' + (p.hand === 'Z' ? 'Zurdo' : 'Diestro') + ' · Prefiere ' + SURF_LABEL[p.pref] +
           ' · Nivel <span class="stars">' + starsOf(p) + '</span>' +
           (!p.isHuman && p.pot != null && p.age <= 23 ? ' · Potencial <span class="stars">' + starsVal(p.pot) + '</span>' : '') +
           (p.injury ? ' · <span style="color:var(--danger)">Lesionado: ' + esc(p.injury.name) + ' (' + p.injury.days + 'd)</span>' : '') + '</div>' +

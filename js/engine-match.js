@@ -37,8 +37,9 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     var f = 1 + (p.form||0) * 0.03;
     var b = prefBonus(p, surf);
     var day = (rng() * 2 - 1) * 0.45; // el dia bueno/malo: hace posibles las sorpresas
+    var lefty = p.hand === 'Z' ? 0.15 : 0; // el saque zurdo incomoda
     return {
-      S: (p.srv*0.6 + p.pow*0.4 + b + day) * e * f,          // saque
+      S: (p.srv*0.6 + p.pow*0.4 + b + day + lefty) * e * f,  // saque
       R: (p.ret*0.55 + p.spd*0.2 + p.con*0.25 + b*0.5 + day) * e * f, // resto
       G: (groundRating(p, surf) + b + day) * e * f,          // juego de fondo
       fatigueRate: Math.max(0.008, 0.028 - p.sta*0.0018) // desgaste por set (depende de resistencia)
