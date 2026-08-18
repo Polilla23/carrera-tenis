@@ -1225,7 +1225,12 @@ var UI = {};
           '<button data-mode="train" class="' + (S.action === 'train' ? 'on' : '') + '">Entrenar</button>' +
           '<button data-mode="rest" class="' + (S.action === 'rest' ? 'on' : '') + '">Descansar</button>' +
         '</div>' +
-        (S.action === 'train' ? '<select id="focus-sel">' + focusOpts + '</select>' : ''))
+        (S.action === 'train' ? '<select id="focus-sel">' + focusOpts + '</select>' : '') +
+        (h.loc && h.loc !== TC.playerRegion(h) ?
+          '<div class="seg" id="stay-seg" title="Donde pasas las semanas libres: el proximo viaje sale desde ahi">' +
+            '<button data-stay="0" class="' + (!S.stayAbroad ? 'on' : '') + '">🏠 Volver a casa</button>' +
+            '<button data-stay="1" class="' + (S.stayAbroad ? 'on' : '') + '">📍 Quedarme en ' + (TC.REGION_LABEL[h.loc] || '?') + '</button>' +
+          '</div>' : ''))
       ) +
       (!h.injury && h.energy < 30 ? '<span style="color:var(--danger);font-size:12px;font-weight:800">⚠️ FUNDIDO: riesgo alto de lesion grave</span>' : '') +
       (pending
@@ -1284,6 +1289,11 @@ var UI = {};
     if(seg) seg.onclick = function(e){
       var b = e.target.closest('button');
       if(b){ S.action = b.dataset.mode; render(); }
+    };
+    var stseg = $('stay-seg');
+    if(stseg) stseg.onclick = function(e){
+      var b = e.target.closest('button');
+      if(b){ S.stayAbroad = b.dataset.stay === '1'; TC.save(S); render(); }
     };
     var fs = $('focus-sel');
     if(fs) fs.onchange = function(){ S.trainFocus = fs.value; };
@@ -1430,7 +1440,7 @@ var UI = {};
             '<div class="meta">Nivel <span class="stars">' + starsOf(h) + '</span></div></div>' +
           '<div class="f2f-vs">VS</div>' +
           '<div class="f2f-p"><div class="nm plink" data-player="' + opp.id + '" title="Ver ficha">' + esc(opp.name) + '</div>' +
-            '<div class="meta">' + (opp.rank === 9999 ? 'NR' : '#' + opp.rank) + ' · ' + opp.country + ' · ' + opp.age + ' anios</div>' +
+            '<div class="meta">' + (opp.rank === 9999 ? 'NR' : '#' + opp.rank) + ' · ' + opp.country + ' · ' + opp.age + ' anios · Energia ' + Math.round(opp.energy) + '% · ' + fmtForm(opp.form) + '</div>' +
             '<div class="meta">Nivel <span class="stars">' + starsOf(opp) + '</span> · Prefiere ' + surfHtml(opp.pref) + '</div></div>' +
         '</div>' +
         (h.energy < 30 ? '<div class="injury-note">⚠️ Estas fundido (' + Math.round(h.energy) + '%): jugar asi multiplica el riesgo de una lesion de meses</div>' : '') +

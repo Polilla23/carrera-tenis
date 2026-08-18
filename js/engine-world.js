@@ -254,7 +254,11 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
       }
       if(def._hn == null) def._hn = strHashNum(def.id);
 
-      var pool = [];
+      // en futures y challengers, el cuadro es mayormente local: pocos cruzan el mundo por 15 puntos
+      var isSmall = def.cat === 'CH125' || def.cat === 'CH75' || def.cat === 'ITF25' || def.cat === 'ITF15';
+      var travelerProb = def.cat.indexOf('ITF') === 0 ? 0.12 : 0.25;
+
+      var pool = [], farPool = [];
       for(var i = 0; i < state.players.length; i++){
         var p = state.players[i];
         if(p.id === state.humanId) continue;
@@ -268,6 +272,11 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
         if(sib250 && p.rank <= 60 && h01(p.id + 7919, def._hn) < 0.08) continue;
         // y a veces un jugador simplemente se toma la semana libre
         if(h01(p.id + 104729, def._hn) < 0.06) continue;
+        // torneo chico en otro continente: solo viaja una minoria
+        if(isSmall && def.region && playerRegion(p) !== def.region && h01(p.id + 31337, def._hn) > travelerProb){
+          farPool.push(p);
+          continue;
+        }
         pool.push(p);
       }
       // barajar antes de ordenar: los no rankeados (empate en 9999) entran en orden aleatorio
@@ -277,6 +286,15 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
       }
       pool.sort(function(a, b){ return a.rank - b.rank; });
       var slots = cat.draw - (humanRegistered ? 1 : 0);
+      // si los locales no alcanzan, completan viajeros de otras regiones
+      if(pool.length < slots && farPool.length){
+        for(s = farPool.length - 1; s > 0; s--){
+          sj = Math.floor(rng() * (s + 1));
+          st = farPool[s]; farPool[s] = farPool[sj]; farPool[sj] = st;
+        }
+        farPool.sort(function(a, b){ return a.rank - b.rank; });
+        pool = pool.concat(farPool.slice(0, slots - pool.length));
+      }
       pool = pool.slice(0, slots);
       // si falta gente, completar con "qualifiers" (ranking peor que el corte)
       if(pool.length < slots){
@@ -341,7 +359,9 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     }
     if(def._hn == null) def._hn = strHashNum(def.id);
 
-    var pool = [];
+    var isSmall = def.cat === 'CH125' || def.cat === 'CH75' || def.cat === 'ITF25' || def.cat === 'ITF15';
+    var travelerProb = def.cat.indexOf('ITF') === 0 ? 0.12 : 0.25;
+    var pool = [], farPool = [];
     for(var i = 0; i < state.players.length; i++){
       var p = state.players[i];
       if(p.id === state.humanId) continue;
@@ -351,10 +371,19 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
       if(sibs.length > 1 && chooseSibling(p, sibs).id !== def.id) continue;
       if(sib250 && p.rank <= 60 && h01(p.id + 7919, def._hn) < 0.08) continue;
       if(h01(p.id + 104729, def._hn) < 0.06) continue;
+      if(isSmall && def.region && playerRegion(p) !== def.region && h01(p.id + 31337, def._hn) > travelerProb){
+        farPool.push(p);
+        continue;
+      }
       pool.push(p);
     }
     pool.sort(function(a, b){ return a.rank - b.rank; });
-    pool = pool.slice(0, cat.draw - (humanRegistered ? 1 : 0));
+    var slots2 = cat.draw - (humanRegistered ? 1 : 0);
+    if(pool.length < slots2 && farPool.length){
+      farPool.sort(function(a, b){ return a.rank - b.rank; });
+      pool = pool.concat(farPool.slice(0, slots2 - pool.length));
+    }
+    pool = pool.slice(0, slots2);
     for(i = 0; i < pool.length; i++) ids.push(pool[i].id);
     if(humanRegistered) ids.push(state.humanId);
     ids.sort(function(a, b){ return state.players[a].rank - state.players[b].rank; });
@@ -773,8 +802,10 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
 
     for(var i = 0; i < ps.length; i++){
       var p = ps[i];
-      // semana sin torneo: vuelta a casa (el proximo viaje sale desde ahi)
-      if(mod7(state.day) === 0 && p.curT === null) p.loc = playerRegion(p);
+      // semana sin torneo: vuelta a casa (el humano puede elegir quedarse donde esta)
+      if(mod7(state.day) === 0 && p.curT === null){
+        if(i !== state.humanId || !state.stayAbroad) p.loc = playerRegion(p);
+      }
       if(p.injury){
         p.injury.days--;
         // parado se recupera lento, y el fisico se atrofia dia a dia

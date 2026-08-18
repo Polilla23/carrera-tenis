@@ -33,7 +33,7 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
       schedule: [], active: [], finished: [],
       registrations: [],
       pendingMatch: null,
-      action: 'train', trainFocus: 'fh',
+      action: 'train', trainFocus: 'fh', stayAbroad: false,
       news: [], rankHistory: [], archive: [],
       seasonYear: null,
       career: {startYear: 2026, titles: [], bestRank: 9999, finalsQualified: 0, retired: false}
