@@ -7,6 +7,9 @@ var UI = {};
   var detailId = null;       // torneo abierto en el visor de detalle (def del calendario)
   var archInstId = null;     // torneo abierto desde el archivo (instancia)
   var archiveYear = null;    // anio seleccionado en el archivo
+  var archiveMonth = 'all';  // mes (0-11) o 'all'
+  var archiveSurf = 'all';   // superficie o 'all'
+  var archiveCat = 'all';    // categoria o 'all'
   var chartRange = '1y';     // rango del grafico de ranking: 3m | 1y | all
   var app;
 
@@ -269,8 +272,38 @@ var UI = {};
       return '<button class="chip' + (y === archiveYear ? ' on' : '') + '" data-ayear="' + y + '">' + y + '</button>';
     }).join('') + '</div>';
 
-    var entries = arc.filter(function(e){ return e.y === archiveYear; })
-                     .sort(function(a, b){ return a.startDay - b.startDay; });
+    // filtros: mes, superficie, categoria
+    html += '<div class="cal-filters">' +
+      '<button class="chip' + (archiveMonth === 'all' ? ' on' : '') + '" data-amonth="all">Todo el anio</button>' +
+      TC.MESES.map(function(m, i){
+        return '<button class="chip' + (archiveMonth === i ? ' on' : '') + '" data-amonth="' + i + '">' + m.slice(0, 3) + '</button>';
+      }).join('') + '</div>';
+    html += '<div class="cal-filters">' +
+      '<button class="chip' + (archiveSurf === 'all' ? ' on' : '') + '" data-asurf="all">Todas</button>' +
+      ['clay','hard','grass','indoor'].map(function(s){
+        return '<button class="chip' + (archiveSurf === s ? ' on' : '') + '" data-asurf="' + s + '">' + SURF_LABEL[s] + '</button>';
+      }).join('') +
+      '<span style="width:14px"></span>' +
+      [['all','Toda categoria'],['GS','Grand Slam'],['M1000','Masters'],['500','500'],['250','250'],['CH','Challenger'],['ITF','ITF']].map(function(c){
+        return '<button class="chip' + (archiveCat === c[0] ? ' on' : '') + '" data-acat="' + c[0] + '">' + c[1] + '</button>';
+      }).join('') + '</div>';
+
+    function catMatches(cat){
+      if(archiveCat === 'all') return true;
+      if(archiveCat === 'CH') return cat === 'CH125' || cat === 'CH75';
+      if(archiveCat === 'ITF') return cat === 'ITF25' || cat === 'ITF15';
+      if(archiveCat === 'M1000') return cat === 'M1000' || cat === 'FINALS';
+      return cat === archiveCat;
+    }
+
+    var entries = arc.filter(function(e){
+      if(e.y !== archiveYear) return false;
+      if(archiveMonth !== 'all' && TC.dateOf(e.startDay).getUTCMonth() !== archiveMonth) return false;
+      if(archiveSurf !== 'all' && e.surf !== archiveSurf) return false;
+      if(!catMatches(e.cat)) return false;
+      return true;
+    }).sort(function(a, b){ return a.startDay - b.startDay; });
+    if(!entries.length) html += '<p style="color:var(--muted);margin-top:10px">Ningun torneo coincide con estos filtros.</p>';
     var lastMonth = -1;
     for(i = 0; i < entries.length; i++){
       var e = entries[i];
@@ -1050,6 +1083,9 @@ var UI = {};
       if(t.dataset.filter){ calFilter = t.dataset.filter; render(); return; }
       if(t.dataset.crange){ chartRange = t.dataset.crange; render(); return; }
       if(t.dataset.ayear){ archiveYear = parseInt(t.dataset.ayear, 10); render(); return; }
+      if(t.dataset.amonth != null){ archiveMonth = t.dataset.amonth === 'all' ? 'all' : parseInt(t.dataset.amonth, 10); render(); return; }
+      if(t.dataset.asurf){ archiveSurf = t.dataset.asurf; render(); return; }
+      if(t.dataset.acat){ archiveCat = t.dataset.acat; render(); return; }
       if(t.id === 'btn-back-cal'){ detailId = null; render(); return; }
       if(t.id === 'btn-back-arch'){ archInstId = null; render(); return; }
       var al = t.closest('[data-adetail]');
@@ -1059,12 +1095,9 @@ var UI = {};
       if(t.dataset.reg){
         var def = TC.findDef(S, t.dataset.reg);
         var adv = def ? TC.registerAdvice(S, def) : null;
-        if(adv && !confirm((adv.level === 'hard' ? '⚠️ ' : '💤 ') + adv.msg + '\n\nTe inscribis igual?')){
-          return;
-        }
-        var r = TC.register(S, t.dataset.reg);
-        if(!r.ok) alert(r.reason);
-        TC.save(S); render(); return;
+        if(adv){ openAdviceModal(t.dataset.reg, adv); return; }
+        doRegister(t.dataset.reg);
+        return;
       }
       if(t.dataset.unreg){ TC.unregister(S, t.dataset.unreg); TC.save(S); render(); return; }
       var ar = t.closest('.attr-row');
@@ -1097,6 +1130,41 @@ var UI = {};
     TC.save(S);
     render();
     if(ev.type === 'match') openMatchModal();
+  }
+
+  // ================= INSCRIPCION =================
+  function doRegister(defId){
+    var r = TC.register(S, defId);
+    if(!r.ok) alert(r.reason);
+    TC.save(S);
+    render();
+  }
+
+  // Aviso de dificultad con el estilo del juego (en vez del confirm nativo)
+  function openAdviceModal(defId, adv){
+    var def = TC.findDef(S, defId);
+    if(!def) return;
+    var cat = TC.CATS[def.cat];
+    var hard = adv.level === 'hard';
+    openModal(
+      '<div class="match-card">' +
+        '<div style="font-size:44px;line-height:1">' + (hard ? '⚠️' : '💤') + '</div>' +
+        '<h2 style="margin-top:8px">' + (hard ? 'Cuadro muy dificil' : 'Sobreclasificado') + '</h2>' +
+        '<div class="tourinfo">' + badgeHtml(def.cat) + ' &nbsp;' + esc(def.name) + ' · ' +
+          TC.fmtRange(def.startDay, def.startDay + def.dur - 1) + '</div>' +
+        '<div class="modal-note" style="font-size:14px;max-width:420px;margin:14px auto;color:' +
+          (hard ? 'var(--danger)' : 'var(--warn)') + '">' + esc(adv.msg) + '</div>' +
+        '<div class="modal-actions">' +
+          '<button class="btn" id="adv-cancel">Mejor no</button>' +
+          '<button class="btn primary" id="adv-go">Inscribirme igual</button>' +
+        '</div>' +
+      '</div>'
+    );
+    $('adv-cancel').onclick = closeModal;
+    $('adv-go').onclick = function(){
+      closeModal();
+      doRegister(defId);
+    };
   }
 
   // ================= MODAL DE PARTIDO =================
