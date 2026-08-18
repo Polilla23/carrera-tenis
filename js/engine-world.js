@@ -292,7 +292,7 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     {n:'inflamacion de rodilla', min:14, max:35, w:8},
     {n:'desgarro muscular', min:21, max:45, w:6}
   ];
-  function rollInjury(rng){
+  function rollInjury(rng, mult){
     var tw = 0, i;
     for(i = 0; i < INJURIES.length; i++) tw += INJURIES[i].w;
     var x = rng() * tw;
@@ -301,7 +301,8 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
       if(x <= 0) break;
     }
     var inj = INJURIES[Math.min(i, INJURIES.length - 1)];
-    var d = Math.round(inj.min + rng() * (inj.max - inj.min));
+    var d = Math.round((inj.min + rng() * (inj.max - inj.min)) * (mult || 1));
+    d = Math.min(100, d);
     return {name: inj.n, days: d, total: d};
   }
 
@@ -345,13 +346,13 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     gains[winner.id] = grantMatchXp(winner, inst.cat, true, rng);
     gains[loser.id] = grantMatchXp(loser, inst.cat, false, rng);
 
-    // riesgo de lesion post-partido
+    // riesgo de lesion post-partido (jugar fundido multiplica probabilidad Y gravedad)
     var newInjury = null;
     var pInj = TC.injuryRisk(loser, loser.energy);
-    if(rng() < pInj){ loser.injury = rollInjury(rng); newInjury = {id: loser.id, injury: loser.injury}; }
+    if(rng() < pInj){ loser.injury = rollInjury(rng, TC.injuryDaysMult(loser.energy)); newInjury = {id: loser.id, injury: loser.injury}; }
     else {
       pInj = TC.injuryRisk(winner, winner.energy);
-      if(rng() < pInj * 0.8){ winner.injury = rollInjury(rng); newInjury = {id: winner.id, injury: winner.injury}; }
+      if(rng() < pInj * 0.8){ winner.injury = rollInjury(rng, TC.injuryDaysMult(winner.energy)); newInjury = {id: winner.id, injury: winner.injury}; }
     }
     return {result: result, winnerId: winner.id, loserId: loser.id, score: scoreString(result, true), injury: newInjury, gains: gains};
   };
@@ -762,10 +763,11 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
       // cuanto mas fundido, menos rinde el entrenamiento
       var eff = 0.4 + 0.6 * Math.min(1, p.energy / 55);
       p[focus] = Math.min(9.8, Math.round((p[focus] + 0.006 * ageF * curve * eff) * 10000) / 10000);
-      // entrenar fundido puede lesionar
-      if(p.energy < 20 && rng() < 0.012){
-        p.injury = rollInjury(rng);
-        pushNews(state, 'Te lesionaste entrenando fundido: ' + p.injury.name + ' (' + p.injury.days + ' dias)', true);
+      // riesgo de lesion entrenando: crece fuerte con el cansancio
+      var riskT = p.energy < 45 ? 0.002 + ((45 - p.energy) / 45) * 0.02 : 0.0004;
+      if(rng() < riskT){
+        p.injury = rollInjury(rng, TC.injuryDaysMult(p.energy));
+        pushNews(state, 'Te lesionaste entrenando' + (p.energy < 30 ? ' fundido' : '') + ': ' + p.injury.name + ' (' + p.injury.days + ' dias)', true);
       }
     } else {
       p.energy = Math.min(100, p.energy + 8);

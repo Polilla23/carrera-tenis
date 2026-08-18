@@ -1013,6 +1013,7 @@ var UI = {};
         '</div>' +
         (S.action === 'train' ? '<select id="focus-sel">' + focusOpts + '</select>' : ''))
       ) +
+      (!h.injury && h.energy < 30 ? '<span style="color:var(--danger);font-size:12px;font-weight:800">⚠️ FUNDIDO: riesgo alto de lesion grave</span>' : '') +
       (pending
         ? '<button class="advance-btn match" id="btn-advance">JUGAR ' + esc(pendingRoundLabel().toUpperCase()) + '</button>'
         : (inTournament
@@ -1174,6 +1175,7 @@ var UI = {};
             '<div class="meta">' + (opp.rank === 9999 ? 'NR' : '#' + opp.rank) + ' · ' + opp.country + ' · ' + opp.age + ' anios</div>' +
             '<div class="meta">Nivel <span class="stars">' + starsOf(opp) + '</span> · Prefiere ' + SURF_LABEL[opp.pref] + '</div></div>' +
         '</div>' +
+        (h.energy < 30 ? '<div class="injury-note">⚠️ Estas fundido (' + Math.round(h.energy) + '%): jugar asi multiplica el riesgo de una lesion de meses</div>' : '') +
         '<div class="modal-actions">' +
           '<button class="btn primary" id="m-play">Jugar el partido</button>' +
         '</div>' +

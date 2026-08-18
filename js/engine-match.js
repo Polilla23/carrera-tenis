@@ -28,7 +28,9 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
   function energyFactor(en){
     if(en == null) en = 100;
     en = Math.max(0, Math.min(100, en));
-    return 0.84 + 0.16 * Math.pow(en/100, 0.6);
+    var f = 0.84 + 0.16 * Math.pow(en/100, 0.6);
+    if(en < 30) f -= ((30 - en) / 30) * 0.08; // fundido de verdad: el cuerpo no responde
+    return f;
   }
 
   // Perfil efectivo para un partido (aplica energia, forma, superficie preferida y "dia de forma")
@@ -147,12 +149,21 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     return Math.max(3, Math.round(cost));
   };
 
-  // Riesgo de lesion post-partido
+  // Riesgo de lesion post-partido: bajo 30% de energia se dispara (jugar fundido es una ruleta)
   TC.injuryRisk = function(player, energyAfter){
-    var base = 0.014;
-    var fatiga = energyAfter < 60 ? (60 - energyAfter) / 45 : 0;
+    var base = 0.012;
     var fragil = (10 - player.sta) * 0.06;
-    return base * (1 + fatiga + fragil);
+    var en = Math.max(0, energyAfter == null ? 100 : energyAfter);
+    var fatiga = 1;
+    if(en < 60 && en >= 30) fatiga = 1 + (60 - en) / 30;      // hasta 2x
+    else if(en < 30) fatiga = 2 + ((30 - en) / 30) * 6;       // de 2x a 8x
+    return base * (1 + fragil) * fatiga;
+  };
+
+  // Fundido, las lesiones ademas son mas graves (hasta 2.5x mas largas)
+  TC.injuryDaysMult = function(en){
+    en = Math.max(0, en == null ? 100 : en);
+    return en >= 30 ? 1 : 1 + ((30 - en) / 30) * 1.5;
   };
 
   TC.energyFactor = energyFactor;
