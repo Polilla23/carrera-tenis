@@ -560,6 +560,7 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     state.archive.push({
       y: TC.dateOf(inst.startDay).getUTCFullYear(),
       name: inst.name, cat: inst.cat, surf: inst.surf,
+      region: inst.region || null,
       startDay: inst.startDay, dur: inst.dur,
       champId: inst.championId != null ? inst.championId : null,
       champ: inst.championId != null ? state.players[inst.championId].name : null,

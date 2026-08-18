@@ -6,6 +6,8 @@ var UI = {};
   var calFilter = 'auto';
   var calMonth = 'all';      // filtro de mes del calendario
   var calSurf = 'all';       // filtro de superficie del calendario
+  var calRegion = 'all';     // filtro de region del calendario
+  var archiveRegion = 'all'; // filtro de region del archivo
   var detailId = null;       // torneo abierto en el visor de detalle (def del calendario)
   var archInstId = null;     // torneo abierto desde el archivo (instancia)
   var archiveYear = null;    // anio seleccionado en el archivo
@@ -380,6 +382,11 @@ var UI = {};
       [['all','Toda categoria'],['GS','Grand Slam'],['M1000','Masters'],['500','500'],['250','250'],['CH','Challenger'],['ITF','ITF']].map(function(c){
         return '<button class="chip' + (archiveCat === c[0] ? ' on' : '') + '" data-acat="' + c[0] + '">' + c[1] + '</button>';
       }).join('') + '</div>';
+    html += '<div class="cal-filters">' +
+      '<button class="chip' + (archiveRegion === 'all' ? ' on' : '') + '" data-aregion="all">Todas las regiones</button>' +
+      Object.keys(TC.REGION_LABEL).map(function(r){
+        return '<button class="chip' + (archiveRegion === r ? ' on' : '') + '" data-aregion="' + r + '">' + TC.REGION_LABEL[r] + '</button>';
+      }).join('') + '</div>';
 
     function catMatches(cat){
       if(archiveCat === 'all') return true;
@@ -393,6 +400,7 @@ var UI = {};
       if(e.y !== archiveYear) return false;
       if(archiveMonth !== 'all' && TC.dateOf(e.startDay).getUTCMonth() !== archiveMonth) return false;
       if(archiveSurf !== 'all' && e.surf !== archiveSurf) return false;
+      if(archiveRegion !== 'all' && e.region !== archiveRegion) return false;
       if(!catMatches(e.cat)) return false;
       return true;
     }).sort(function(a, b){ return a.startDay - b.startDay; });
@@ -496,6 +504,11 @@ var UI = {};
       '<button class="chip' + (calSurf === 'all' ? ' on' : '') + '" data-csurf="all">Todas las superficies</button>' +
       ['clay','hard','grass','indoor'].map(function(s){
         return '<button class="chip' + (calSurf === s ? ' on' : '') + '" data-csurf="' + s + '">' + SURF_LABEL[s] + '</button>';
+      }).join('') +
+      '<span style="width:14px"></span>' +
+      '<button class="chip' + (calRegion === 'all' ? ' on' : '') + '" data-cregion="all">Todas las regiones</button>' +
+      Object.keys(TC.REGION_LABEL).map(function(r){
+        return '<button class="chip' + (calRegion === r ? ' on' : '') + '" data-cregion="' + r + '">' + TC.REGION_LABEL[r] + '</button>';
       }).join('') + '</div>';
 
     // leyenda de categorias, de mas facil a mas dificil
@@ -523,6 +536,7 @@ var UI = {};
       var m = TC.dateOf(d.startDay).getUTCMonth();
       if(calMonth !== 'all' && m !== calMonth) continue;
       if(calSurf !== 'all' && d.surf !== calSurf) continue;
+      if(calRegion !== 'all' && d.region !== calRegion) continue;
       (byMonth[m] = byMonth[m] || []).push(d);
     }
     var months = Object.keys(byMonth).map(Number).sort(function(a,b){return a-b;});
@@ -1257,6 +1271,8 @@ var UI = {};
       if(t.dataset.filter){ calFilter = t.dataset.filter; render(); return; }
       if(t.dataset.cmonth != null){ calMonth = t.dataset.cmonth === 'all' ? 'all' : parseInt(t.dataset.cmonth, 10); render(); return; }
       if(t.dataset.csurf){ calSurf = t.dataset.csurf; render(); return; }
+      if(t.dataset.cregion){ calRegion = t.dataset.cregion; render(); return; }
+      if(t.dataset.aregion){ archiveRegion = t.dataset.aregion; render(); return; }
       if(t.dataset.crange){ chartRange = t.dataset.crange; render(); return; }
       if(t.dataset.ayear){ archiveYear = parseInt(t.dataset.ayear, 10); render(); return; }
       if(t.dataset.amonth != null){ archiveMonth = t.dataset.amonth === 'all' ? 'all' : parseInt(t.dataset.amonth, 10); render(); return; }
