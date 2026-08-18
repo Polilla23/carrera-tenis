@@ -4,6 +4,7 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 :root {
+  color-scheme: dark; /* controles nativos (dropdowns, scrollbars) en oscuro */
   --bg: #06080a;
   --card: rgba(255,255,255,.045);
   --card2: rgba(255,255,255,.085);
@@ -206,6 +207,8 @@ details.legend summary { cursor: pointer; color: var(--muted); font-size: 12px; 
   padding: 12px 16px; display: flex; align-items: center; gap: 14px; justify-content: center; flex-wrap: wrap;
 }
 .actionbar select { padding: 9px 12px; background: var(--card2); color: var(--text); border: 1px solid var(--line2); border-radius: 9px; font-family: inherit; font-weight: 600; }
+/* opciones del dropdown: fondo oscuro y texto claro siempre (algunos Windows lo pintaban blanco sobre blanco) */
+select option { background-color: #161d26; color: #eef2f7; }
 .seg { display: flex; border: 1px solid var(--line2); border-radius: 10px; overflow: hidden; }
 .seg button { padding: 9px 16px; background: transparent; border: none; color: var(--muted); cursor: pointer; font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-family: inherit; }
 .seg button.on { background: var(--card2); color: var(--accent); }

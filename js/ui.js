@@ -201,7 +201,7 @@ var UI = {};
     var ecolor = h.energy > 70 ? 'var(--accent2)' : (h.energy > 40 ? 'var(--warn)' : 'var(--danger)');
     return '<div class="topbar">' +
       '<div class="avatar">' + esc(initials(h.name).toUpperCase()) + '</div>' +
-      '<div class="who"><div class="nm">' + esc(h.name) + '</div><div class="cc">' + h.country + ' · ' + h.age + ' anios · ' + SURF_LABEL[h.pref] + '</div></div>' +
+      '<div class="who"><div class="nm">' + esc(h.name) + '</div><div class="cc">' + h.country + ' · ' + h.age + ' anios · <span class="stars">' + starsOf(h) + '</span></div></div>' +
       '<div class="hero-rank"><div class="v">' + (h.rank === 9999 ? 'NR' : '#' + h.rank) + '</div><div class="l">Ranking</div></div>' +
       '<div class="stat"><div class="v">' + h.pts + '</div><div class="l">Puntos</div></div>' +
       '<div class="stat"><div class="v">' + fmtForm(h.form) + '</div><div class="l">Forma</div></div>' +
@@ -780,6 +780,7 @@ var UI = {};
       stat(h.pts, 'Puntos') +
       stat(h.wins + '-' + h.losses, 'Victorias') +
       stat(S.career.titles.length, 'Titulos') +
+      stat('<span class="stars">' + starsOf(h) + '</span>', 'Calidad') +
       stat(TC.overall(h).toFixed(2), 'Nivel general') +
       stat(SURF_LABEL[h.pref], 'Superficie') +
       stat(h.hand === 'Z' ? 'Zurdo' : 'Diestro', 'Mano') +
@@ -1169,7 +1170,8 @@ var UI = {};
           ' · ' + SURF_LABEL[t.surf] + (t.bestOf === 5 ? ' · Mejor de 5' : '') + '</div>' +
         '<div class="face2face">' +
           '<div class="f2f-p"><div class="nm" style="color:var(--accent)">' + esc(h.name) + '</div>' +
-            '<div class="meta">' + (h.rank === 9999 ? 'NR' : '#' + h.rank) + ' · Energia ' + Math.round(h.energy) + '% · ' + fmtForm(h.form) + '</div></div>' +
+            '<div class="meta">' + (h.rank === 9999 ? 'NR' : '#' + h.rank) + ' · Energia ' + Math.round(h.energy) + '% · ' + fmtForm(h.form) + '</div>' +
+            '<div class="meta">Nivel <span class="stars">' + starsOf(h) + '</span></div></div>' +
           '<div class="f2f-vs">VS</div>' +
           '<div class="f2f-p"><div class="nm plink" data-player="' + opp.id + '" title="Ver ficha">' + esc(opp.name) + '</div>' +
             '<div class="meta">' + (opp.rank === 9999 ? 'NR' : '#' + opp.rank) + ' · ' + opp.country + ' · ' + opp.age + ' anios</div>' +
