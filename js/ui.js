@@ -4,6 +4,7 @@ var UI = {};
   var S = null;              // estado del juego
   var tab = 'calendar';
   var calFilter = 'auto';
+  var calSub = 'all';        // sub-filtro de categoria (250/500/M1000/GS o CH50..CH175 o ITF15/25)
   var calMonth = 'all';      // filtro de mes del calendario
   var calSurf = 'all';       // filtro de superficie del calendario
   var calRegion = 'all';     // filtro de region del calendario
@@ -14,7 +15,8 @@ var UI = {};
   var archiveYear = null;    // anio seleccionado en el archivo
   var archiveMonth = 'all';  // mes (0-11) o 'all'
   var archiveSurf = 'all';   // superficie o 'all'
-  var archiveCat = 'all';    // categoria o 'all'
+  var archiveCat = 'all';    // grupo: 'all' | 'atp' | 'ch' | 'itf'
+  var archiveSub = 'all';    // sub-categoria dentro del grupo
   var chartRange = '1y';     // rango del grafico de ranking: 3m | 1y | all
   var weekReport = null;     // cambios de atributos desde el ultimo avance
   var app;
@@ -410,9 +412,16 @@ var UI = {};
         return '<button class="chip' + (archiveSurf === s ? ' on' : '') + '" data-asurf="' + s + '">' + SURF_LABEL[s] + '</button>';
       }).join('') +
       '<span style="width:14px"></span>' +
-      [['all','Toda categoria'],['GS','Grand Slam'],['M1000','Masters'],['500','500'],['250','250'],['CH','Challenger'],['ITF','ITF']].map(function(c){
+      [['all','Toda categoria'],['atp','ATP'],['ch','Challenger'],['itf','ITF']].map(function(c){
         return '<button class="chip' + (archiveCat === c[0] ? ' on' : '') + '" data-acat="' + c[0] + '">' + c[1] + '</button>';
-      }).join('') + '</div>';
+      }).join('') +
+      (SUBCATS[archiveCat] ?
+        '<span style="width:10px"></span>' +
+        '<button class="chip' + (archiveSub === 'all' ? ' on' : '') + '" data-asub="all">Todos</button>' +
+        SUBCATS[archiveCat].map(function(sc){
+          return '<button class="chip' + (archiveSub === sc[0] ? ' on' : '') + '" data-asub="' + sc[0] + '">' + sc[1] + '</button>';
+        }).join('') : '') +
+      '</div>';
     html += '<div class="cal-filters">' +
       '<button class="chip' + (archiveRegion === 'all' ? ' on' : '') + '" data-aregion="all">Todas las regiones</button>' +
       Object.keys(TC.REGION_LABEL).map(function(r){
@@ -421,10 +430,10 @@ var UI = {};
 
     function catMatches(cat){
       if(archiveCat === 'all') return true;
-      if(archiveCat === 'CH') return cat.indexOf('CH') === 0;
-      if(archiveCat === 'ITF') return cat.indexOf('ITF') === 0;
-      if(archiveCat === 'M1000') return cat === 'M1000' || cat === 'FINALS';
-      return cat === archiveCat;
+      if(archiveCat === 'atp') return ['GS','M1000','500','250','FINALS'].indexOf(cat) >= 0 && subMatches(cat, archiveSub);
+      if(archiveCat === 'ch') return cat.indexOf('CH') === 0 && subMatches(cat, archiveSub);
+      if(archiveCat === 'itf') return cat.indexOf('ITF') === 0 && subMatches(cat, archiveSub);
+      return true;
     }
 
     var entries = arc.filter(function(e){
@@ -493,11 +502,23 @@ var UI = {};
   }
 
   // ================= CALENDARIO =================
+  // sub-categorias de cada grupo de filtro
+  var SUBCATS = {
+    atp: [['250','250'],['500','500'],['M1000','Masters 1000'],['GS','Grand Slam']],
+    ch:  [['CH50','50'],['CH75','75'],['CH100','100'],['CH125','125'],['CH175','175']],
+    itf: [['ITF15','M15'],['ITF25','M25']]
+  };
+  function subMatches(cat, sub){
+    if(sub === 'all') return true;
+    if(sub === 'M1000') return cat === 'M1000' || cat === 'FINALS';
+    return cat === sub;
+  }
+
   function catVisible(cat){
     if(calFilter === 'all') return true;
-    if(calFilter === 'atp') return ['GS','M1000','500','250','FINALS'].indexOf(cat) >= 0;
-    if(calFilter === 'ch') return cat.indexOf('CH') === 0;
-    if(calFilter === 'itf') return cat.indexOf('ITF') === 0;
+    if(calFilter === 'atp') return ['GS','M1000','500','250','FINALS'].indexOf(cat) >= 0 && subMatches(cat, calSub);
+    if(calFilter === 'ch') return cat.indexOf('CH') === 0 && subMatches(cat, calSub);
+    if(calFilter === 'itf') return cat.indexOf('ITF') === 0 && subMatches(cat, calSub);
     // auto: segun tu nivel
     var r = human().rank;
     if(r <= 120) return ['GS','M1000','500','250','FINALS','CH175'].indexOf(cat) >= 0;
@@ -535,7 +556,15 @@ var UI = {};
     var filters = [['auto','Para mi nivel'],['all','Todos'],['atp','ATP'],['ch','Challenger'],['itf','ITF']];
     var html = '<div class="cal-filters">' + filters.map(function(f){
       return '<button class="chip' + (calFilter===f[0]?' on':'') + '" data-filter="' + f[0] + '">' + f[1] + '</button>';
-    }).join('') + '</div>';
+    }).join('') +
+    // sub-filtro segun el grupo elegido (ATP -> 250/500/1000/GS, Challenger -> 50..175, ITF -> M15/M25)
+    (SUBCATS[calFilter] ?
+      '<span style="width:10px"></span>' +
+      '<button class="chip' + (calSub === 'all' ? ' on' : '') + '" data-csub="all">Todos</button>' +
+      SUBCATS[calFilter].map(function(sc){
+        return '<button class="chip' + (calSub === sc[0] ? ' on' : '') + '" data-csub="' + sc[0] + '">' + sc[1] + '</button>';
+      }).join('') : '') +
+    '</div>';
 
     // filtros de mes y superficie
     html += '<div class="cal-filters">' +
@@ -1391,7 +1420,8 @@ var UI = {};
     var panel = $('panel');
     panel.onclick = function(e){
       var t = e.target;
-      if(t.dataset.filter){ calFilter = t.dataset.filter; render(); return; }
+      if(t.dataset.filter){ calFilter = t.dataset.filter; calSub = 'all'; render(); return; }
+      if(t.dataset.csub){ calSub = t.dataset.csub; render(); return; }
       if(t.dataset.cmonth != null){ calMonth = t.dataset.cmonth === 'all' ? 'all' : parseInt(t.dataset.cmonth, 10); render(); return; }
       if(t.dataset.csurf){ calSurf = t.dataset.csurf; render(); return; }
       if(t.dataset.cregion){ calRegion = t.dataset.cregion; render(); return; }
@@ -1401,7 +1431,8 @@ var UI = {};
       if(t.dataset.ayear){ archiveYear = parseInt(t.dataset.ayear, 10); render(); return; }
       if(t.dataset.amonth != null){ archiveMonth = t.dataset.amonth === 'all' ? 'all' : parseInt(t.dataset.amonth, 10); render(); return; }
       if(t.dataset.asurf){ archiveSurf = t.dataset.asurf; render(); return; }
-      if(t.dataset.acat){ archiveCat = t.dataset.acat; render(); return; }
+      if(t.dataset.acat){ archiveCat = t.dataset.acat; archiveSub = 'all'; render(); return; }
+      if(t.dataset.asub){ archiveSub = t.dataset.asub; render(); return; }
       if(t.id === 'btn-back-cal'){ detailId = null; render(); return; }
       if(t.id === 'btn-back-arch'){ archInstId = null; render(); return; }
       var al = t.closest('[data-adetail]');
