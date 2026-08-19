@@ -33,7 +33,7 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
       schedule: [], active: [], finished: [],
       registrations: [],
       pendingMatch: null,
-      action: 'train', trainFocus: 'fh', stayAbroad: false,
+      action: 'train', trainFocus: 'fh', stayAbroad: false, stayMode: 'home', h2h: {},
       news: [], rankHistory: [], archive: [],
       seasonYear: null,
       career: {startYear: 2026, titles: [], bestRank: 9999, finalsQualified: 0, retired: false}
@@ -92,7 +92,9 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     if(def.startDay - state.day < 2) return {ok:false, reason:'Cierre de inscripcion pasado'};
     if(def.cat === 'FINALS') return {ok:false, reason:'Clasificacion automatica (top 8)'};
     if(h.rank < cat.minRank) return {ok:false, reason:'Tu ranking es demasiado alto para esta categoria'};
-    if(h.rank > cat.maxRank) return {ok:false, reason:'Necesitas ranking ' + cat.maxRank + ' o mejor'};
+    var qc = TC.QUALI[def.cat];
+    var lim = qc ? qc.qMax : cat.maxRank;
+    if(h.rank > lim) return {ok:false, reason:'Necesitas ranking ' + lim + ' o mejor' + (qc ? ' (corte de qualy)' : '')};
     if(h.injury && state.day + h.injury.days > def.startDay) return {ok:false, reason:'Lesionado hasta despues del inicio'};
     // superposicion de fechas con otras inscripciones o torneo en curso
     var conflicts = TC.overlapsWith(state, def);
@@ -203,7 +205,7 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     var m = TC.playWorldMatch(state, state.humanId, pm.oppId, inst, rng);
 
     // completar el registro pendiente
-    var recs = inst.pendingRecords;
+    var recs = pm.quali ? inst.qPendingRecords : inst.pendingRecords;
     for(var i = 0; i < recs.length; i++){
       if(recs[i].human && recs[i].w == null){
         recs[i].w = m.winnerId;
@@ -214,11 +216,21 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     state.pendingMatch = null;
 
     // cerrar la ronda (ahora sin pendientes)
-    if(inst.isFinals){
+    if(pm.quali){
+      TC._finishQualiRoundPublic(state, inst, pm.round, recs, rng);
+    } else if(inst.isFinals){
       TC._finishFinalsDayPublic(state, inst, pm.round, recs, rng);
     } else {
       TC._finishRoundPublic(state, inst, pm.round, recs, rng);
     }
+
+    // head-to-head contra este rival
+    state.h2h = state.h2h || {};
+    var hh = state.h2h[pm.oppId] || {w: 0, l: 0};
+    if(m.winnerId === state.humanId) hh.w++; else hh.l++;
+    hh.name = state.players[pm.oppId].name;
+    hh.last = {day: state.day, won: m.winnerId === state.humanId, sc: TC.scoreString(m.result, false), tname: inst.name};
+    state.h2h[pm.oppId] = hh;
 
     var h = state.players[state.humanId];
     var won = m.winnerId === state.humanId;
@@ -241,6 +253,8 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
       opp: state.players[pm.oppId],
       inst: inst,
       round: pm.round,
+      quali: !!pm.quali,
+      qualified: !!pm.quali && pm.round === 1 && won,
       injury: injuryMsg,
       duration: m.result.duration,
       energyAfter: h.energy,

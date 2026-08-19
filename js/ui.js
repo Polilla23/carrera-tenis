@@ -252,7 +252,7 @@ var UI = {};
   function renderTabs(){
     var tabs = [
       ['calendar','Calendario'], ['agenda','Agenda'], ['tournament','Torneo'], ['player','Jugador'],
-      ['ranking','Ranking'], ['archive','Archivo'], ['history','Historial'], ['news','Noticias']
+      ['ranking','Ranking'], ['h2h','H2H'], ['archive','Archivo'], ['history','Historial'], ['news','Noticias']
     ];
     var inT = playerTournament();
     return '<div class="tabs">' + tabs.map(function(t){
@@ -341,9 +341,35 @@ var UI = {};
     if(tab === 'player') return renderPlayer();
     if(tab === 'ranking') return renderRanking();
     if(tab === 'archive') return archInstId ? renderArchiveDetail(archInstId) : renderArchive();
+    if(tab === 'h2h') return renderH2H();
     if(tab === 'history') return renderHistory();
     if(tab === 'news') return renderNews();
     return '';
+  }
+
+  // ================= HEAD TO HEAD =================
+  function h2hLabel(rec){
+    if(rec.w > rec.l) return '<span style="color:var(--accent2);font-weight:800">' + rec.w + '-' + rec.l + ' a favor</span>';
+    if(rec.l > rec.w) return '<span style="color:var(--danger);font-weight:800">' + rec.w + '-' + rec.l + ' en contra</span>';
+    return '<span style="color:var(--muted);font-weight:800">' + rec.w + '-' + rec.l + '</span>';
+  }
+
+  function renderH2H(){
+    var hh = S.h2h || {};
+    var ids = Object.keys(hh);
+    if(!ids.length) return '<p style="color:var(--muted)">Todavia no jugaste contra nadie (desde que existe el historial). Cada partido va sumando tu head-to-head contra ese rival.</p>';
+    ids.sort(function(a, b){ return (hh[b].w + hh[b].l) - (hh[a].w + hh[a].l); });
+    var html = '<h3 class="section">Tus rivalidades (' + ids.length + ' rivales)</h3>' +
+      '<table class="rank"><tr><th>Rival</th><th>H2H</th><th>Ultimo partido</th></tr>';
+    for(var i = 0; i < ids.length; i++){
+      var id = parseInt(ids[i], 10);
+      var rec = hh[ids[i]];
+      var p = S.players[id];
+      var nm = (p && p.name === rec.name) ? playerName(id, false, false) : esc(rec.name);
+      var last = rec.last ? (rec.last.won ? 'G' : 'P') + ' ' + esc(rec.last.sc) + ' <span style="color:var(--muted)">· ' + esc(rec.last.tname) + ' · ' + TC.fmtDate(rec.last.day) + '</span>' : '—';
+      html += '<tr><td>' + nm + '</td><td>' + h2hLabel(rec) + '</td><td style="font-size:12px">' + last + '</td></tr>';
+    }
+    return html + '</table>';
   }
 
   // ================= ARCHIVO HISTORICO =================
@@ -575,11 +601,15 @@ var UI = {};
       if(chk.ok){
         var daysLeft = d.startDay - S.day - 2;
         status = 'Cierra en ' + (daysLeft + 1) + 'd';
-        btn = '<button class="btn small primary" data-reg="' + d.id + '">Inscribirse</button>';
+        var qc = TC.QUALI[d.cat];
+        var viaQ = qc && S.players[S.humanId].rank > TC.CATS[d.cat].maxRank;
+        btn = '<button class="btn small primary" data-reg="' + d.id + '">' + (viaQ ? 'Inscribirse (Qualy)' : 'Inscribirse') + '</button>';
       } else {
         status = chk.reason;
       }
     }
+    var dfd = !d.started ? TC.defending(S, d) : 0;
+    var dfdHtml = dfd > 0 ? '<span class="rchip" style="border-color:var(--warn);color:var(--warn)" title="Puntos que hiciste en la edicion pasada: vencen esta semana">Defendes ' + dfd + '</span>' : '';
 
     return '<div class="trow s-' + d.surf + (isNow?' now':'') + (isReg?' reg':'') + '">' +
       '<div class="dates">' + TC.fmtRange(d.startDay, d.startDay + d.dur - 1) + '</div>' +
@@ -587,6 +617,7 @@ var UI = {};
       sdotHtml(d.surf) +
       '<div class="tname tlink" data-detail="' + d.id + '" title="Ver detalle del torneo">' + esc(d.name) +
         (geoOf(d) ? ' <span class="tgeo">📍 ' + esc(geoOf(d)) + '</span>' : '') + '</div>' +
+      dfdHtml +
       '<div class="status">' + status + '</div>' + btn +
     '</div>';
   }
@@ -739,15 +770,55 @@ var UI = {};
     return html + '</div></div>';
   }
 
-  // Cuadro completo: rondas previas como lista + fase final como llave visual
+  // Fase previa (qualy) como lista plegable
+  function renderQualiSection(t){
+    if(!t.qBracket) return '';
+    var html = '<h3 class="section">Fase previa (Qualy) — ' + (t.qualifiers && t.qualifiers.length ? t.qualifiers.length + ' clasificados' : 'en juego') + '</h3>';
+    for(var qr = 0; qr < t.qBracket.length; qr++){
+      html += '<details class="round"' + (qr === t.qBracket.length - 1 && (!t.qResults || !t.qResults[qr]) ? ' open' : '') + '><summary>Qualy — ronda ' + (qr + 1) + '</summary>';
+      var recs = t.qResults && t.qResults[qr];
+      if(recs){
+        for(var i = 0; i < recs.length; i++){
+          var rec = recs[i];
+          if(rec.p[0] == null && rec.p[1] == null) continue;
+          var mine = rec.p[0] === S.humanId || rec.p[1] === S.humanId;
+          var line;
+          if(rec.bye){ line = playerName(rec.w, true) + ' — bye'; }
+          else if(rec.wo){ line = playerName(rec.w, true) + ' gana por W.O.'; }
+          else if(rec.w == null){ line = playerName(rec.p[0]) + ' vs ' + playerName(rec.p[1]) + ' — por jugar'; }
+          else {
+            var lId = rec.p[0] === rec.w ? rec.p[1] : rec.p[0];
+            line = playerName(rec.w, true) + ' d. ' + playerName(lId) + ' &nbsp;<span style="color:var(--muted)">' + (rec.sc || '') + '</span>';
+          }
+          html += '<div class="mline' + (mine ? ' mine' : '') + '">' + line + '</div>';
+        }
+      } else {
+        var round = t.qBracket[qr];
+        for(i = 0; i < round.length; i += 2){
+          if(round[i] == null && round[i + 1] == null) continue;
+          var mine2 = round[i] === S.humanId || round[i + 1] === S.humanId;
+          html += '<div class="mline' + (mine2 ? ' mine' : '') + '">' + playerName(round[i]) + ' vs ' + playerName(round[i + 1]) + '</div>';
+        }
+      }
+      html += '</details>';
+    }
+    return html;
+  }
+
+  // Cuadro completo: qualy + rondas previas como lista + fase final como llave visual
   function renderDraw(t){
-    if(!t.bracket) return '<p style="color:var(--muted)">No hay datos del cuadro de este torneo.</p>';
+    var html = renderQualiSection(t);
+    if(t.qBracket && !t.mainBuilt){
+      return html + '<p style="color:var(--muted)">El cuadro principal se sortea cuando termine la qualy.</p>';
+    }
+    if(!t.bracket) return html + '<p style="color:var(--muted)">No hay datos del cuadro de este torneo.</p>';
     var totalR = Math.round(Math.log(t.drawSize) / Math.log(2));
     var rStart = t.drawSize > 32 ? totalR - 4 : 0; // cuadros grandes: llave visual desde octavos
-    var html = '';
     if(rStart > 0){
       html += '<h3 class="section">Rondas previas</h3>' + renderRoundsRange(t, 0, rStart);
       html += '<h3 class="section">Fase final</h3>';
+    } else if(t.qBracket){
+      html += '<h3 class="section">Cuadro principal</h3>';
     }
     html += renderVisualBracket(t, rStart);
     return html;
@@ -1211,6 +1282,9 @@ var UI = {};
       stat(human().wins + '-' + human().losses, 'Record') +
       stat(TC.dateOf(S.day).getUTCFullYear() - S.career.startYear + 1, 'Temporada') +
       '</div>';
+    if(S.recap){
+      html += '<div style="margin-top:14px"><button class="btn" id="btn-recap">📋 Ver resumen de la temporada ' + S.recap.y + '</button></div>';
+    }
     return html;
   }
 
@@ -1227,9 +1301,34 @@ var UI = {};
     if(!pm) return 'partido';
     var t = TC.findActive(S, pm.tid);
     if(!t) return 'partido';
+    if(pm.quali) return 'Qualy ' + (pm.round + 1) + 'a ronda';
     if(t.isFinals) return pm.round <= 2 ? 'Round Robin' : (pm.round === 3 ? 'Semifinal' : 'la FINAL');
     var lbl = TC.roundLabel(t, pm.round);
     return lbl === 'Final' ? 'la FINAL' : lbl;
+  }
+
+  // Selector de donde pasar las semanas libres: casa / quedarse / adelantarse al proximo torneo
+  function nextRegDef(){
+    var best = null;
+    for(var i = 0; i < S.registrations.length; i++){
+      var d = TC.findDef(S, S.registrations[i]);
+      if(d && d.region && d.startDay > S.day && (!best || d.startDay < best.startDay)) best = d;
+    }
+    return best;
+  }
+
+  function renderStaySeg(h){
+    var mode = S.stayMode || (S.stayAbroad ? 'stay' : 'home');
+    var home = TC.playerRegion(h);
+    var next = nextRegDef();
+    var away = h.loc && h.loc !== home;
+    var canNext = next && next.region !== (h.loc || home);
+    if(!away && !canNext) return '';
+    var html = '<div class="seg" id="stay-seg" title="Donde pasas las semanas libres: el proximo viaje sale desde ahi">' +
+      '<button data-staymode="home" class="' + (mode === 'home' ? 'on' : '') + '">🏠 Casa</button>';
+    if(away) html += '<button data-staymode="stay" class="' + (mode === 'stay' ? 'on' : '') + '">📍 Quedarme en ' + (TC.REGION_LABEL[h.loc] || '?') + '</button>';
+    if(canNext) html += '<button data-staymode="next" class="' + (mode === 'next' ? 'on' : '') + '" title="Viajar antes y aclimatarte donde jugas ' + esc(next.name) + '">✈️ Adelantarme a ' + (TC.REGION_LABEL[next.region] || '?') + '</button>';
+    return html + '</div>';
   }
 
   function renderActionBar(){
@@ -1251,11 +1350,7 @@ var UI = {};
           '<button data-mode="rest" class="' + (S.action === 'rest' ? 'on' : '') + '">Descansar</button>' +
         '</div>' +
         (S.action === 'train' ? '<select id="focus-sel">' + focusOpts + '</select>' : '') +
-        (h.loc && h.loc !== TC.playerRegion(h) ?
-          '<div class="seg" id="stay-seg" title="Donde pasas las semanas libres: el proximo viaje sale desde ahi">' +
-            '<button data-stay="0" class="' + (!S.stayAbroad ? 'on' : '') + '">🏠 Volver a casa</button>' +
-            '<button data-stay="1" class="' + (S.stayAbroad ? 'on' : '') + '">📍 Quedarme en ' + (TC.REGION_LABEL[h.loc] || '?') + '</button>' +
-          '</div>' : ''))
+        renderStaySeg(h))
       ) +
       (!h.injury && h.energy < 30 ? '<span style="color:var(--danger);font-size:12px;font-weight:800">⚠️ FUNDIDO: riesgo alto de lesion grave</span>' : '') +
       (pending
@@ -1306,6 +1401,7 @@ var UI = {};
       var ar = t.closest('.attr-row');
       if(ar && ar.dataset.attr){ S.trainFocus = ar.dataset.attr; S.action = 'train'; render(); return; }
       if(t.id === 'btn-play2'){ openMatchModal(); return; }
+      if(t.id === 'btn-recap'){ openRecapModal(); return; }
       if(t.id === 'btn-retire'){
         if(confirm('Seguro que queres retirarte? Fin de la carrera.')) retire();
         return;
@@ -1320,7 +1416,11 @@ var UI = {};
     var stseg = $('stay-seg');
     if(stseg) stseg.onclick = function(e){
       var b = e.target.closest('button');
-      if(b){ S.stayAbroad = b.dataset.stay === '1'; TC.save(S); render(); }
+      if(b && b.dataset.staymode){
+        S.stayMode = b.dataset.staymode;
+        S.stayAbroad = S.stayMode === 'stay'; // compat
+        TC.save(S); render();
+      }
     };
     var fs = $('focus-sel');
     if(fs) fs.onchange = function(){ S.trainFocus = fs.value; };
@@ -1338,6 +1438,11 @@ var UI = {};
     var before = {};
     TC.ATTRS.forEach(function(a){ before[a] = h[a]; });
     var ev = TC.advance(S, mode);
+    // recap de fin de temporada, una sola vez
+    if(S.recapNew){
+      S.recapNew = false;
+      setTimeout(openRecapModal, 80);
+    }
     // que cambio en tus atributos desde el ultimo avance
     weekReport = TC.ATTRS.map(function(a){
       return {a: a, d: Math.round((h[a] - before[a]) * 1000) / 1000};
@@ -1459,8 +1564,9 @@ var UI = {};
       '<div class="match-card">' +
         '<h2>' + esc(t.name) + '</h2>' +
         '<div class="tourinfo"><span class="badge" style="background:' + cat.color + '">' + cat.label + '</span> ' +
-          (t.isFinals ? (pm.round <= 2 ? 'Round Robin' : pm.round === 3 ? 'Semifinal' : 'FINAL') : TC.roundLabel(t, pm.round)) +
-          ' · ' + SURF_LABEL[t.surf] + (t.bestOf === 5 ? ' · Mejor de 5' : '') + '</div>' +
+          (pm.quali ? 'QUALY — ronda ' + (pm.round + 1) + ' de 2' :
+            (t.isFinals ? (pm.round <= 2 ? 'Round Robin' : pm.round === 3 ? 'Semifinal' : 'FINAL') : TC.roundLabel(t, pm.round))) +
+          ' · ' + SURF_LABEL[t.surf] + (t.bestOf === 5 && !pm.quali ? ' · Mejor de 5' : '') + '</div>' +
         '<div class="face2face">' +
           '<div class="f2f-p"><div class="nm" style="color:var(--accent)">' + esc(h.name) + '</div>' +
             '<div class="meta">' + (h.rank === 9999 ? 'NR' : '#' + h.rank) + ' · Energia ' + Math.round(h.energy) + '% · ' + fmtForm(h.form) + '</div>' +
@@ -1468,7 +1574,8 @@ var UI = {};
           '<div class="f2f-vs">VS</div>' +
           '<div class="f2f-p"><div class="nm plink" data-player="' + opp.id + '" title="Ver ficha">' + esc(opp.name) + '</div>' +
             '<div class="meta">' + (opp.rank === 9999 ? 'NR' : '#' + opp.rank) + ' · ' + opp.country + ' · ' + opp.age + ' anios · Energia ' + Math.round(opp.energy) + '% · ' + fmtForm(opp.form) + '</div>' +
-            '<div class="meta">Nivel <span class="stars">' + starsOf(opp) + '</span> · Prefiere ' + surfHtml(opp.pref) + '</div></div>' +
+            '<div class="meta">Nivel <span class="stars">' + starsOf(opp) + '</span> · Prefiere ' + surfHtml(opp.pref) + '</div>' +
+            (S.h2h && S.h2h[opp.id] ? '<div class="meta">H2H: ' + h2hLabel(S.h2h[opp.id]) + '</div>' : '') + '</div>' +
         '</div>' +
         (h.energy < 30 ? '<div class="injury-note">⚠️ Estas fundido (' + Math.round(h.energy) + '%): jugar asi multiplica el riesgo de una lesion de meses</div>' : '') +
         '<div class="modal-actions">' +
@@ -1522,6 +1629,7 @@ var UI = {};
         html += '<div class="modal-note" style="color:var(--accent2)">Experiencia: ' +
           res.xp.map(function(g){ return TC.ATTR_LABEL[g.attr] + ' +' + g.amt.toFixed(3).replace(/0+$/, '').replace(/\.$/, ''); }).join(' · ') + '</div>';
       }
+      if(res.qualified) html += '<div class="champ-banner" style="font-size:19px;color:var(--accent2)">🎟️ CLASIFICASTE AL CUADRO PRINCIPAL!</div>';
       if(res.isChampion) html += '<div class="champ-banner">🏆 CAMPEON DEL TORNEO!</div>';
       if(res.injury) html += '<div class="injury-note">Te lesionaste: ' + esc(res.injury.name) + ' — ' + res.injury.days + ' dias de baja</div>';
       vz.innerHTML = html;
@@ -1529,6 +1637,49 @@ var UI = {};
       $('m-close').onclick = function(){ closeModal(); render(); };
     }
     $('m-skip').onclick = showVerdict;
+  }
+
+  // ================= RECAP DE TEMPORADA =================
+  function openRecapModal(){
+    var r = S.recap;
+    if(!r) return;
+    var hu = r.human;
+    var html = '<div>' +
+      '<h2 style="text-align:center">Resumen ' + r.y + '</h2>' +
+      '<h3 class="section">Tu anio</h3>' +
+      '<div class="pstats">' +
+        stat((hu.rankStart ? '#' + hu.rankStart : 'NR') + ' → ' + (hu.rank ? '#' + hu.rank : 'NR'), 'Ranking') +
+        stat(hu.wins + '-' + hu.losses, 'Record') +
+        stat(hu.titles.length, 'Titulos') +
+        stat(hu.pts, 'Puntos') +
+      '</div>';
+    if(hu.titles.length){
+      html += hu.titles.map(function(t){ return '<div class="title-item">🏆 ' + badgeHtml(t.cat) + ' <b>' + esc(t.name) + '</b></div>'; }).join('');
+    }
+    if(hu.best && hu.best.pts > 0 && !hu.titles.length){
+      html += '<div class="modal-note">Tu mejor resultado: ' + esc(hu.best.name) + ' (' + hu.best.pts + ' pts)</div>';
+    }
+    html += '<h3 class="section">El anio del circuito</h3>';
+    if(r.top5 && r.top5.length){
+      html += '<table class="rank">' + r.top5.map(function(p){
+        return '<tr><td class="num">' + p.rank + '</td><td>' + esc(p.name) + '</td><td style="text-align:right">' + p.pts + ' pts</td></tr>';
+      }).join('') + '</table>';
+    }
+    if(r.gs && r.gs.length){
+      html += '<h3 class="section">Grand Slams</h3>' + r.gs.map(function(g){
+        return '<div class="trow" style="padding:5px 10px"><div class="tname" style="font-weight:600">' + esc(g.t) + '</div><div class="status">🏆 ' + esc(g.c || '?') + '</div></div>';
+      }).join('');
+    }
+    if(r.finals) html += '<div class="trow" style="padding:5px 10px"><div class="tname" style="font-weight:600">ATP Finals</div><div class="status">🏆 ' + esc(r.finals.c || '?') + '</div></div>';
+    if(r.most && r.most.length){
+      html += '<div class="modal-note">Mas titulos ATP: ' + r.most.map(function(m){ return esc(m.name) + ' (' + m.n + ')'; }).join(' · ') + '</div>';
+    }
+    if(r.climber){
+      html += '<div class="modal-note" style="color:var(--accent2)">📈 Revelacion del anio: ' + esc(r.climber.name) + ' (' + (r.climber.from === 'NR' ? 'NR' : '#' + r.climber.from) + ' → #' + r.climber.to + ')</div>';
+    }
+    html += '<div class="modal-actions"><button class="btn primary" id="recap-close">Cerrar</button></div></div>';
+    openModal(html);
+    $('recap-close').onclick = closeModal;
   }
 
   // ================= RETIRO =================

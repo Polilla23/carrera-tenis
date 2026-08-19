@@ -170,6 +170,10 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     sched.sort(function(a, b){ return a.startDay - b.startDay || catRank(a.cat) - catRank(b.cat); });
     state.schedule = sched;
     state.seasonYear = year;
+    // foto de los rankings al arranque del anio (para el recap y la "revelacion")
+    var rsMap = {};
+    for(var ri = 0; ri < state.players.length; ri++) rsMap[state.players[ri].id] = state.players[ri].rank;
+    state.rankStart = {year: year, ranks: rsMap};
   };
 
   function catRank(c){ return {FINALS:0, GS:1, M1000:2, '500':3, '250':4, CH125:5, CH75:6, ITF25:7, ITF15:8}[c]; }
@@ -316,7 +320,9 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
         var st = pool[s]; pool[s] = pool[sj]; pool[sj] = st;
       }
       pool.sort(function(a, b){ return a.rank - b.rank; });
-      var slots = cat.draw - (humanRegistered ? 1 : 0);
+      var qcfg = TC.QUALI[def.cat];
+      var humanDirect = humanRegistered && human && !human.injury && (!qcfg || human.rank <= cat.maxRank);
+      var slots = cat.draw - (qcfg ? qcfg.q : 0) - (humanDirect ? 1 : 0);
       // si los locales no alcanzan, completan viajeros de otras regiones
       if(pool.length < slots && farPool.length){
         for(s = farPool.length - 1; s > 0; s--){
@@ -343,7 +349,7 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
         pool = pool.concat(quali.slice(0, slots - pool.length));
       }
       for(i = 0; i < pool.length; i++) entrants.push(pool[i].id);
-      if(humanRegistered && human && !human.injury){
+      if(humanDirect){
         entrants.push(state.humanId);
       }
       entrants.sort(function(a, b){ return state.players[a].rank - state.players[b].rank; });
@@ -352,20 +358,58 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     if(entrants.length < 2) return null;
     var inst = TC.createTournament(def, def.startDay, entrants, rng);
     inst.region = def.region || null;
-    for(var e = 0; e < entrants.length; e++){
-      if(entrants[e] == null) continue;
-      var pe = state.players[entrants[e]];
+    inst.baseId = def.baseId || null;
+    inst.entrants = entrants.slice();
+
+    // fase previa (qualy) para los ATP: cuadro de q*4 con los siguientes del ranking
+    var qc = TC.QUALI[def.cat];
+    var allIn = entrants.slice();
+    if(qc && def.cat !== 'FINALS'){
+      var human2 = state.players[state.humanId];
+      var humanQuali = humanRegistered && human2 && !human2.injury && entrants.indexOf(state.humanId) < 0;
+      var inMain = {};
+      for(var x = 0; x < entrants.length; x++) inMain[entrants[x]] = 1;
+      var qpool = [];
+      for(var j = 0; j < state.players.length; j++){
+        var qp = state.players[j];
+        if(qp.id === state.humanId || inMain[qp.id]) continue;
+        if(qp.injury || qp.curT !== null) continue;
+        if(qp.rank < cat.minRank || qp.rank > qc.qMax) continue;
+        if(qp.energy < 40) continue;
+        qpool.push(qp);
+      }
+      qpool.sort(function(a, b){ return a.rank - b.rank; });
+      var qslots = qc.q * 4 - (humanQuali ? 1 : 0);
+      qpool = qpool.slice(0, qslots);
+      var qids = qpool.map(function(p2){ return p2.id; });
+      if(humanQuali) qids.push(state.humanId);
+      qids.sort(function(a, b){ return state.players[a].rank - state.players[b].rank; });
+      if(qids.length >= 2){
+        inst.qEntrants = qids.slice();
+        inst.qBracket = [TC.makeDraw(qids, qc.q * 4, rng)];
+        inst.qResults = [];
+        inst.qRound = 0;
+        inst.qDays = [def.startDay - 2, def.startDay - 1];
+        inst.qualifiers = [];
+        inst.mainBuilt = false;
+        inst.directs = entrants.slice();
+        allIn = allIn.concat(qids);
+      }
+    }
+
+    for(var e = 0; e < allIn.length; e++){
+      if(allIn[e] == null) continue;
+      var pe = state.players[allIn[e]];
       pe.curT = inst.id;
       // el viaje al torneo cuesta energia (mucho mas si es otro continente)
       var from = pe.loc || playerRegion(pe);
       var tc = TC.travelCost(from, def.region);
       pe.energy = Math.max(0, pe.energy - tc);
       if(def.region) pe.loc = def.region;
-      if(entrants[e] === state.humanId && tc > 5){
+      if(allIn[e] === state.humanId && tc > 5){
         pushNews(state, 'Vuelo largo a ' + (TC.REGION_LABEL[def.region] || '?') + ' para ' + def.name + ' (-' + tc + ' de energia)', true);
       }
     }
-    inst.entrants = entrants.slice();
     return inst;
   }
 
@@ -533,7 +577,7 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
       pts = arr[Math.min(roundsWon, arr.length - 1)] || 0;
     }
     var p = state.players[pid];
-    var entry = {day: state.day, pts: pts, tid: inst.id, name: inst.name, cat: inst.cat, rw: roundsWon, champ: !!isChampion};
+    var entry = {day: state.day, pts: pts, tid: inst.id, name: inst.name, cat: inst.cat, rw: roundsWon, champ: !!isChampion, bid: inst.baseId || null};
     // para el humano guardamos el detalle del ultimo partido (rival y marcador)
     if(pid === state.humanId && rec && rec.p){
       var oppId = rec.p[0] === pid ? rec.p[1] : rec.p[0];
@@ -654,6 +698,103 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     }
   }
 
+  // ===== QUALY =====
+  function awardQuali(state, pid, inst, qr, rec){
+    var qc = TC.QUALI[inst.cat];
+    var pts = (qc && qc.pts[qr]) || 0;
+    var p = state.players[pid];
+    var entry = {day: state.day, pts: pts, tid: inst.id, name: inst.name + ' (Q)', cat: inst.cat, rw: 0, champ: false, q: true, bid: inst.baseId};
+    if(pid === state.humanId && rec && rec.p){
+      var oppId = rec.p[0] === pid ? rec.p[1] : rec.p[0];
+      if(oppId != null){
+        entry.vs = state.players[oppId].name;
+        entry.sc = rec.sc || (rec.wo ? 'W.O.' : '');
+      }
+    }
+    p.results.push(entry);
+    p.curT = null;
+  }
+
+  function playQualiRound(state, inst, qr, rng){
+    var round = inst.qBracket[qr];
+    var records = inst.qPendingRecords || null;
+    var humanPending = false;
+    if(!records){
+      records = [];
+      for(var i = 0; i < round.length; i += 2){
+        var a = round[i], b = round[i + 1];
+        var rec = null;
+        if(a == null && b == null){ rec = {p:[null,null], w:null, bye:true}; }
+        else if(a == null){ rec = {p:[null,b], w:b, bye:true}; }
+        else if(b == null){ rec = {p:[a,null], w:a, bye:true}; }
+        else {
+          var pa = state.players[a], pb = state.players[b];
+          if(pa.injury && pb.injury){ rec = {p:[a,b], w: rng() < 0.5 ? a : b, wo:true}; }
+          else if(pa.injury){ rec = {p:[a,b], w:b, wo:true}; }
+          else if(pb.injury){ rec = {p:[a,b], w:a, wo:true}; }
+          else if(a === state.humanId || b === state.humanId){
+            rec = {p:[a,b], w:null, human:true};
+            humanPending = true;
+          } else {
+            var m = TC.playWorldMatch(state, a, b, inst, rng);
+            rec = {p:[a,b], w: m.winnerId, sc: m.score};
+          }
+        }
+        records.push(rec);
+      }
+    } else {
+      humanPending = records.some(function(r){ return r.human && r.w == null; });
+    }
+
+    if(humanPending){
+      inst.qPendingRecords = records;
+      var hp = null;
+      for(var j = 0; j < records.length; j++){
+        if(records[j].human && records[j].w == null){ hp = records[j]; break; }
+      }
+      var opp = hp.p[0] === state.humanId ? hp.p[1] : hp.p[0];
+      state.pendingMatch = {tid: inst.id, round: qr, oppId: opp, day: state.day, quali: true};
+      return true;
+    }
+
+    finishQualiRound(state, inst, qr, records, rng);
+    return false;
+  }
+
+  function finishQualiRound(state, inst, qr, records, rng){
+    inst.qPendingRecords = null;
+    inst.qResults[qr] = records;
+    var winners = [];
+    for(var i = 0; i < records.length; i++){
+      var rec = records[i];
+      winners.push(rec.w);
+      var loser = null;
+      if(rec.p[0] != null && rec.p[1] != null){ loser = rec.p[0] === rec.w ? rec.p[1] : rec.p[0]; }
+      if(loser != null) awardQuali(state, loser, inst, qr, rec);
+    }
+    inst.qRound = qr + 1;
+    if(qr >= 1){
+      // clasificados al cuadro principal
+      inst.qualifiers = winners.filter(function(w){ return w != null; });
+      if(inst.qualifiers.indexOf(state.humanId) >= 0){
+        pushNews(state, 'Clasificaste al cuadro principal de ' + inst.name + '!', true);
+      }
+    } else {
+      inst.qBracket.push(winners);
+    }
+  }
+
+  // Sorteo del cuadro principal: directos + clasificados de la qualy
+  function buildMainDraw(state, inst, rng){
+    var combined = inst.directs.concat(inst.qualifiers || []).filter(function(x){ return x != null; });
+    combined.sort(function(a, b){ return state.players[a].rank - state.players[b].rank; });
+    inst.bracket = [TC.makeDraw(combined, inst.drawSize, rng)];
+    inst.results = [];
+    inst.currentRound = 0;
+    inst.entrants = combined.slice();
+    inst.mainBuilt = true;
+  }
+
   // ===== dia de ATP Finals =====
   function playFinalsDay(state, inst, rIdx, rng){
     if(inst.playedDays && inst.playedDays.indexOf(rIdx) >= 0) return false;
@@ -748,7 +889,69 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
   TC.finalsStandings = finalsStandings;
   TC._finishRoundPublic = finishRound;
   TC._finishFinalsDayPublic = finishFinalsDay;
+  TC._finishQualiRoundPublic = finishQualiRound;
   TC._seasonRollover = seasonRollover;
+
+  // Puntos que el humano defiende en la proxima edicion de un torneo (los del anio pasado)
+  TC.defending = function(state, def){
+    if(!def.baseId) return 0;
+    var h = state.players[state.humanId];
+    if(!h) return 0;
+    var best = 0;
+    for(var i = 0; i < h.results.length; i++){
+      var r = h.results[i];
+      if(r.bid === def.baseId && r.day < def.startDay - 200 && r.day > def.startDay - 500 && r.pts > best) best = r.pts;
+    }
+    return best;
+  };
+
+  // ================== RECAP DE TEMPORADA ==================
+  function buildRecap(state, y){
+    var arc = (state.archive || []).filter(function(e){ return e.y === y; });
+    var ps = state.players, h = ps[state.humanId];
+    var res = h.results.filter(function(r){ return TC.dateOf(r.day).getUTCFullYear() === y; });
+    var wins = 0, losses = 0;
+    res.forEach(function(r){ wins += r.rw || 0; if(!r.champ) losses++; });
+    var titles = arc.filter(function(e){ return e.champId === state.humanId; })
+                    .map(function(e){ return {name: e.name, cat: e.cat}; });
+    var best = res.slice().sort(function(a, b){ return b.pts - a.pts; })[0] || null;
+    var top5 = ps.filter(function(p){ return p.rank <= 5; })
+                 .sort(function(a, b){ return a.rank - b.rank; })
+                 .map(function(p){ return {id: p.id, name: p.name, rank: p.rank, pts: p.pts}; });
+    var gs = arc.filter(function(e){ return e.cat === 'GS'; })
+                .map(function(e){ return {t: e.name, c: e.champ, cid: e.champId}; });
+    var fin = null;
+    for(var i = 0; i < arc.length; i++) if(arc[i].cat === 'FINALS') fin = arc[i];
+    var counts = {};
+    arc.forEach(function(e){ if(e.champ && ['GS','M1000','500','250','FINALS'].indexOf(e.cat) >= 0){ counts[e.champ] = (counts[e.champ] || 0) + 1; } });
+    var most = [];
+    for(var k in counts) most.push({name: k, n: counts[k]});
+    most.sort(function(a, b){ return b.n - a.n; });
+    var rs = (state.rankStart && state.rankStart.ranks) || {};
+    var climber = null;
+    ps.forEach(function(p){
+      if(p.isHuman || p.rank > 120) return;
+      var st = rs[p.id];
+      if(st == null) return;
+      if(st >= 9999) st = 600;
+      var d = st - p.rank;
+      if(d > 40 && (!climber || d > climber.d)) climber = {id: p.id, name: p.name, d: d, from: st >= 600 ? 'NR' : st, to: p.rank};
+    });
+    var hs = rs[h.id];
+    state.recap = {
+      y: y,
+      human: {
+        rankStart: (hs == null || hs >= 9999) ? null : hs,
+        rank: h.rank >= 9999 ? null : h.rank,
+        pts: h.pts, wins: wins, losses: losses,
+        titles: titles, best: best
+      },
+      top5: top5, gs: gs,
+      finals: fin ? {c: fin.champ, cid: fin.champId} : null,
+      most: most.slice(0, 3), climber: climber
+    };
+    state.recapNew = true;
+  }
 
   // ================== TICK DIARIO ==================
   function pushNews(state, txt, isHuman){
@@ -769,7 +972,10 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     if(dt.getUTCMonth() === 0 && dt.getUTCDate() === 1){
       var year = dt.getUTCFullYear();
       if(state.seasonYear !== year){
-        if(state.seasonYear) seasonRollover(state, rng);
+        if(state.seasonYear){
+          if(!state.presim && state.humanId != null) buildRecap(state, state.seasonYear);
+          seasonRollover(state, rng);
+        }
         TC.buildSeason(state, year);
         if(!state.presim) pushNews(state, 'Arranca la temporada ' + year, false);
       }
@@ -786,10 +992,11 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
       }
     }
 
-    // Arrancan torneos de hoy
+    // Arrancan torneos de hoy (los ATP con qualy abren 2 dias antes del cuadro principal)
     for(var i = 0; i < state.schedule.length; i++){
       var def = state.schedule[i];
-      if(def.startDay === state.day && !def.started){
+      var startEff = TC.QUALI[def.cat] ? def.startDay - 2 : def.startDay;
+      if(startEff === state.day && !def.started){
         def.started = true;
         var inst = startTournament(state, def, rng);
         if(inst){ state.active.push(inst); def.instId = inst.id; }
@@ -809,6 +1016,21 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     for(var i = 0; i < state.active.length; i++){
       var t = state.active[i];
       if(t.done) continue;
+      // fase previa (qualy) y sorteo del cuadro principal
+      if(t.qBracket){
+        var qr = t.qDays.indexOf(state.day);
+        if(qr >= 0 && t.qRound === qr){
+          if(playQualiRound(state, t, qr, rng)) return true;
+        }
+        if(!t.mainBuilt && state.day >= t.startDay){
+          var guardq = 0;
+          while(t.qRound < 2 && guardq++ < 3){
+            if(playQualiRound(state, t, t.qRound, rng)) return true;
+          }
+          if(t.qRound >= 2) buildMainDraw(state, t, rng);
+        }
+        if(!t.mainBuilt) continue;
+      }
       var off = state.day - t.startDay;
       var rIdx = t.roundDays.indexOf(off);
       if(rIdx >= 0){
@@ -834,9 +1056,34 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
 
     for(var i = 0; i < ps.length; i++){
       var p = ps[i];
-      // semana sin torneo: vuelta a casa (el humano puede elegir quedarse donde esta)
+      // semana sin torneo: vuelta a casa (el humano elige: casa, quedarse, o adelantarse al proximo destino)
       if(mod7(state.day) === 0 && p.curT === null){
-        if(i !== state.humanId || !state.stayAbroad) p.loc = playerRegion(p);
+        if(i !== state.humanId){
+          p.loc = playerRegion(p);
+        } else {
+          var mode = state.stayMode || (state.stayAbroad ? 'stay' : 'home');
+          if(mode === 'home'){
+            p.loc = playerRegion(p);
+          } else if(mode === 'next'){
+            // viajar anticipado a la region del proximo torneo inscripto
+            var target = null;
+            for(var ri2 = 0; ri2 < state.registrations.length; ri2++){
+              for(var si2 = 0; si2 < state.schedule.length; si2++){
+                var sd2 = state.schedule[si2];
+                if(sd2.id === state.registrations[ri2] && sd2.region && sd2.startDay > state.day){
+                  if(!target || sd2.startDay < target.startDay) target = sd2;
+                }
+              }
+            }
+            if(target && target.region !== p.loc){
+              var tcost = TC.travelCost(p.loc, target.region);
+              p.energy = Math.max(0, p.energy - tcost);
+              p.loc = target.region;
+              pushNews(state, 'Viajaste anticipado a ' + (TC.REGION_LABEL[target.region] || '?') + ' para preparar ' + target.name + ' (-' + tcost + ' de energia)', true);
+            }
+          }
+          // 'stay': se queda donde esta
+        }
       }
       if(p.injury){
         p.injury.days--;
