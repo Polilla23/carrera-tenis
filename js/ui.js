@@ -1784,8 +1784,9 @@ var UI = {};
       var st = sets[idx];
       var ch = $('sb-h-' + idx), co = $('sb-o-' + idx);
       if(!ch || !co) return;
-      ch.innerHTML = st.me + (st.tb && st.me > st.op ? '<sup>' + st.tb + '</sup>' : '');
-      co.innerHTML = st.op + (st.tb && st.op > st.me ? '<sup>' + st.tb + '</sup>' : '');
+      // el numerito del tie-break va junto al PERDEDOR del set (notacion estandar: 7-6(5))
+      ch.innerHTML = st.me + (st.tb && st.me < st.op ? '<sup>' + st.tb + '</sup>' : '');
+      co.innerHTML = st.op + (st.tb && st.op < st.me ? '<sup>' + st.tb + '</sup>' : '');
       if(st.me > st.op) ch.classList.add('winset'); else co.classList.add('winset');
     }
     var timer = setInterval(function(){
