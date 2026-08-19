@@ -219,7 +219,7 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     if(!pm) return null;
     var inst = findActive(state, pm.tid);
     var rng = state.rng;
-    var m = TC.playWorldMatch(state, state.humanId, pm.oppId, inst, rng);
+    var m = TC.playWorldMatch(state, state.humanId, pm.oppId, inst, rng, !!pm.quali);
 
     // completar el registro pendiente
     var recs = pm.quali ? inst.qPendingRecords : inst.pendingRecords;

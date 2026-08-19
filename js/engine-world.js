@@ -541,11 +541,12 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
   };
 
   // Juega un partido entre dos jugadores del mundo, aplica energia/forma/lesion
-  TC.playWorldMatch = function(state, aId, bId, inst, rng){
+  // isQuali: las fases previas se juegan SIEMPRE al mejor de 3 (aun en Grand Slams)
+  TC.playWorldMatch = function(state, aId, bId, inst, rng, isQuali){
     var A = state.players[aId], B = state.players[bId];
     A.lastMatchDay = state.day;
     B.lastMatchDay = state.day;
-    var result = TC.simMatch(playerForMatch(A), playerForMatch(B), {surface: inst.surf, bestOf: inst.bestOf, rng: rng});
+    var result = TC.simMatch(playerForMatch(A), playerForMatch(B), {surface: inst.surf, bestOf: isQuali ? 3 : inst.bestOf, rng: rng});
     var winner = result.winner === 0 ? A : B;
     var loser = result.winner === 0 ? B : A;
 
@@ -765,7 +766,7 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
             rec = {p:[a,b], w:null, human:true};
             humanPending = true;
           } else {
-            var m = TC.playWorldMatch(state, a, b, inst, rng);
+            var m = TC.playWorldMatch(state, a, b, inst, rng, true);
             rec = {p:[a,b], w: m.winnerId, sc: m.score};
           }
         }

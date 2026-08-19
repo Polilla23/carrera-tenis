@@ -1753,7 +1753,7 @@ var UI = {};
 
     var h = human();
     var sets = parseScoreSets(res.score);
-    var maxSets = t.bestOf === 5 && !res.quali ? 5 : 3;
+    var maxSets = Math.max(t.bestOf === 5 && !res.quali ? 5 : 3, sets.length);
     var img = catImg(t);
 
     function sbRow(name, who, isMe){
