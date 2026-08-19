@@ -416,8 +416,8 @@ var UI = {};
 
     function catMatches(cat){
       if(archiveCat === 'all') return true;
-      if(archiveCat === 'CH') return cat === 'CH125' || cat === 'CH75';
-      if(archiveCat === 'ITF') return cat === 'ITF25' || cat === 'ITF15';
+      if(archiveCat === 'CH') return cat.indexOf('CH') === 0;
+      if(archiveCat === 'ITF') return cat.indexOf('ITF') === 0;
       if(archiveCat === 'M1000') return cat === 'M1000' || cat === 'FINALS';
       return cat === archiveCat;
     }
@@ -482,23 +482,26 @@ var UI = {};
   function catVisible(cat){
     if(calFilter === 'all') return true;
     if(calFilter === 'atp') return ['GS','M1000','500','250','FINALS'].indexOf(cat) >= 0;
-    if(calFilter === 'ch') return cat === 'CH125' || cat === 'CH75';
-    if(calFilter === 'itf') return cat === 'ITF25' || cat === 'ITF15';
+    if(calFilter === 'ch') return cat.indexOf('CH') === 0;
+    if(calFilter === 'itf') return cat.indexOf('ITF') === 0;
     // auto: segun tu nivel
     var r = human().rank;
-    if(r <= 120) return ['GS','M1000','500','250','FINALS'].indexOf(cat) >= 0;
-    if(r <= 300) return ['250','CH125','CH75','GS','M1000','500'].indexOf(cat) >= 0;
-    if(r <= 500) return ['CH125','CH75','ITF25'].indexOf(cat) >= 0;
-    return ['ITF25','ITF15','CH75'].indexOf(cat) >= 0;
+    if(r <= 120) return ['GS','M1000','500','250','FINALS','CH175'].indexOf(cat) >= 0;
+    if(r <= 300) return ['250','500','M1000','GS','CH175','CH125','CH100','CH75'].indexOf(cat) >= 0;
+    if(r <= 500) return ['250','CH125','CH100','CH75','CH50','ITF25'].indexOf(cat) >= 0;
+    return ['ITF25','ITF15','CH50','CH75'].indexOf(cat) >= 0;
   }
 
   // Descripcion de cada categoria para tooltips y leyenda
   var CAT_DIFF = {
     ITF15:  'El escalon de entrada: juveniles y jugadores fuera del top 450.',
     ITF25:  'Futures fuertes: nivel de rank 300-700.',
+    CH50:   'Challengers de entrada: nivel de rank 280-900.',
     CH75:   'Challengers chicos: nivel de rank 200-500.',
+    CH100:  'Challengers medianos: nivel de rank 150-450.',
     CH125:  'Challengers grandes: nivel de rank 100-350.',
-    '250':  'Circuito ATP: nivel top 150.',
+    CH175:  'Los super-challengers: casi nivel ATP, rank 60-250.',
+    '250':  'Circuito ATP: nivel top 150 (o via qualy).',
     '500':  'Torneos grandes del tour: nivel top 80.',
     M1000:  'Los nueve Masters: nivel top 85, casi todos los cracks.',
     GS:     'Los cuatro grandes: top 110, al mejor de 5 sets.',
@@ -539,7 +542,7 @@ var UI = {};
 
     // leyenda de categorias, de mas facil a mas dificil
     html += '<details class="legend"><summary>¿Que significa cada categoria? (de mas facil a mas dificil)</summary>';
-    var order = ['ITF15','ITF25','CH75','CH125','250','500','M1000','GS','FINALS'];
+    var order = ['ITF15','ITF25','CH50','CH75','CH100','CH125','CH175','250','500','M1000','GS','FINALS'];
     for(var li = 0; li < order.length; li++){
       var ck = order[li], cat = TC.CATS[ck];
       var champPts = ck === 'FINALS' ? 1500 : cat.pts[cat.pts.length - 1];
@@ -1545,6 +1548,19 @@ var UI = {};
     };
   }
 
+  // Logo de categoria (imagenes heredadas del Sim_v3.1 original)
+  var GS_IMG = {ausopen:'AustralianOpen', rolandgarros:'RG', wimbledon:'WB', usopen:'USOpen'};
+  var CAT_IMG = {M1000:'ATP1000', '500':'ATP500', '250':'ATP250', FINALS:'ATPFinals',
+                 CH175:'Challenger175', CH125:'Challenger125', CH100:'Challenger100',
+                 CH75:'Challenger75', CH50:'Challenger50', ITF25:'Future', ITF15:'Future'};
+  function catImg(t){
+    if(t.cat === 'GS'){
+      var b = (t.baseId || t.id || '').replace(/_\d+$/, '');
+      return 'img/' + (GS_IMG[b] || 'AustralianOpen') + '.png';
+    }
+    return CAT_IMG[t.cat] ? 'img/' + CAT_IMG[t.cat] + '.png' : null;
+  }
+
   function starsVal(v){
     var n = Math.max(1, Math.min(5, Math.round((v - 3.5) / 1.1)));
     var s = '';
@@ -1560,8 +1576,10 @@ var UI = {};
     var opp = S.players[pm.oppId];
     var h = human();
     var cat = TC.CATS[t.cat];
+    var pimg = catImg(t);
     openModal(
       '<div class="match-card">' +
+        (pimg ? '<img class="cat-logo big" src="' + pimg + '" alt="">' : '') +
         '<h2>' + esc(t.name) + '</h2>' +
         '<div class="tourinfo"><span class="badge" style="background:' + cat.color + '">' + cat.label + '</span> ' +
           (pm.quali ? 'QUALY — ronda ' + (pm.round + 1) + ' de 2' :
@@ -1586,6 +1604,15 @@ var UI = {};
     $('m-play').onclick = playMatch;
   }
 
+  // Parsea "6-4 3-6 7-6(4)" (mis games primero) a sets estructurados
+  function parseScoreSets(score){
+    return score.split(/\s+/).filter(Boolean).map(function(s){
+      var tb = s.match(/\((\d+)\)$/);
+      var g = s.replace(/\(\d+\)$/, '').split('-').map(Number);
+      return {me: g[0], op: g[1], tb: tb ? tb[1] : null};
+    });
+  }
+
   function playMatch(){
     var pm = S.pendingMatch;
     var t = TC.findActive(S, pm.tid);
@@ -1594,12 +1621,27 @@ var UI = {};
     TC.save(S);
 
     var h = human();
-    var setsArr = res.score.split(' ');
+    var sets = parseScoreSets(res.score);
+    var maxSets = t.bestOf === 5 && !res.quali ? 5 : 3;
+    var img = catImg(t);
+
+    function sbRow(name, who, isMe){
+      var cells = '';
+      for(var i = 0; i < maxSets; i++){
+        cells += '<td class="g" id="sb-' + who + '-' + i + '"></td>';
+      }
+      return '<tr><td class="sbn' + (isMe ? ' me' : '') + '">' + esc(name) + '</td>' + cells + '</tr>';
+    }
+
     openModal(
       '<div class="match-card">' +
-        '<h2>' + esc(t.name) + '</h2>' +
-        '<div class="tourinfo">' + esc(h.name) + ' vs ' + esc(opp.name) + '</div>' +
-        '<div class="score-line" id="score-line"></div>' +
+        '<div class="court c-' + t.surf + '">' +
+          '<div class="court-head">' +
+            (img ? '<img class="cat-logo" src="' + img + '" alt="">' : '') +
+            '<div class="court-tname">' + esc(t.name) + (res.quali ? ' · QUALY' : '') + '</div>' +
+          '</div>' +
+          '<table class="sb">' + sbRow(h.name, 'h', true) + sbRow(opp.name, 'o', false) + '</table>' +
+        '</div>' +
         '<div id="verdict-zone"></div>' +
         '<div class="modal-actions"><button class="btn" id="m-skip">Resultado ya</button></div>' +
       '</div>'
@@ -1607,9 +1649,17 @@ var UI = {};
 
     var i = 0;
     var revealed = false;
+    function fillSet(idx){
+      var st = sets[idx];
+      var ch = $('sb-h-' + idx), co = $('sb-o-' + idx);
+      if(!ch || !co) return;
+      ch.innerHTML = st.me + (st.tb && st.me > st.op ? '<sup>' + st.tb + '</sup>' : '');
+      co.innerHTML = st.op + (st.tb && st.op > st.me ? '<sup>' + st.tb + '</sup>' : '');
+      if(st.me > st.op) ch.classList.add('winset'); else co.classList.add('winset');
+    }
     var timer = setInterval(function(){
-      if(i < setsArr.length){
-        $('score-line').textContent = setsArr.slice(0, ++i).join('  ');
+      if(i < sets.length){
+        fillSet(i++);
       } else {
         clearInterval(timer);
         showVerdict();
@@ -1620,7 +1670,7 @@ var UI = {};
       if(revealed) return;
       revealed = true;
       clearInterval(timer);
-      $('score-line').textContent = setsArr.join('  ');
+      for(var k = 0; k < sets.length; k++) fillSet(k);
       var vz = $('verdict-zone');
       var html = '<div class="verdict ' + (res.won ? 'win' : 'lose') + '">' +
         (res.won ? 'VICTORIA' : 'DERROTA') + '</div>' +

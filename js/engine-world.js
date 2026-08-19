@@ -154,18 +154,17 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     }
     for(w = 0; w < 46; w++){
       start = yStart + w * 7;
-      var month = TC.dateOf(start).getUTCMonth() + 1;
-      var surfs = TC.SEASON_SURF[month] || ['hard','clay','hard'];
       var p25 = pickDistinct(w * 3);
       var p15 = pickDistinct(w * 5 + 11);
+      // cada sede ITF juega en su superficie real
       sched.push({id:'itf25a_' + year + '_' + w, baseId:'itf25a_' + w, name:'M25 ' + TC.ITF_CITIES[p25[0]],
-                  cat:'ITF25', surf: surfs[2], startDay: start, dur: 6, region: TC.ITF_REGIONS[p25[0]]});
+                  cat:'ITF25', surf: TC.ITF_SURFS[p25[0]], startDay: start, dur: 6, region: TC.ITF_REGIONS[p25[0]]});
       sched.push({id:'itf25b_' + year + '_' + w, baseId:'itf25b_' + w, name:'M25 ' + TC.ITF_CITIES[p25[1]],
-                  cat:'ITF25', surf: surfs[0], startDay: start, dur: 6, region: TC.ITF_REGIONS[p25[1]]});
+                  cat:'ITF25', surf: TC.ITF_SURFS[p25[1]], startDay: start, dur: 6, region: TC.ITF_REGIONS[p25[1]]});
       sched.push({id:'itf15a_' + year + '_' + w, baseId:'itf15a_' + w, name:'M15 ' + TC.ITF_CITIES[p15[0]],
-                  cat:'ITF15', surf: surfs[w % 3], startDay: start, dur: 6, region: TC.ITF_REGIONS[p15[0]]});
+                  cat:'ITF15', surf: TC.ITF_SURFS[p15[0]], startDay: start, dur: 6, region: TC.ITF_REGIONS[p15[0]]});
       sched.push({id:'itf15b_' + year + '_' + w, baseId:'itf15b_' + w, name:'M15 ' + TC.ITF_CITIES[p15[1]],
-                  cat:'ITF15', surf: surfs[(w + 1) % 3], startDay: start, dur: 6, region: TC.ITF_REGIONS[p15[1]]});
+                  cat:'ITF15', surf: TC.ITF_SURFS[p15[1]], startDay: start, dur: 6, region: TC.ITF_REGIONS[p15[1]]});
     }
     sched.sort(function(a, b){ return a.startDay - b.startDay || catRank(a.cat) - catRank(b.cat); });
     state.schedule = sched;
@@ -176,7 +175,7 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     state.rankStart = {year: year, ranks: rsMap};
   };
 
-  function catRank(c){ return {FINALS:0, GS:1, M1000:2, '500':3, '250':4, CH125:5, CH75:6, ITF25:7, ITF15:8}[c]; }
+  function catRank(c){ return {FINALS:0, GS:1, M1000:2, '500':3, '250':4, CH175:5, CH125:6, CH100:7, CH75:8, CH50:9, ITF25:10, ITF15:11}[c]; }
 
   // ================== RANKINGS ==================
   TC.recomputeRankings = function(state){
@@ -290,7 +289,7 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
       if(def._hn == null) def._hn = strHashNum(def.id);
 
       // en futures y challengers, el cuadro es mayormente local: pocos cruzan el mundo por 15 puntos
-      var isSmall = def.cat === 'CH125' || def.cat === 'CH75' || def.cat === 'ITF25' || def.cat === 'ITF15';
+      var isSmall = def.cat.indexOf('CH') === 0 || def.cat.indexOf('ITF') === 0;
       var travelerProb = def.cat.indexOf('ITF') === 0 ? 0.12 : 0.25;
 
       var pool = [], farPool = [];
@@ -434,7 +433,7 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     }
     if(def._hn == null) def._hn = strHashNum(def.id);
 
-    var isSmall = def.cat === 'CH125' || def.cat === 'CH75' || def.cat === 'ITF25' || def.cat === 'ITF15';
+    var isSmall = def.cat.indexOf('CH') === 0 || def.cat.indexOf('ITF') === 0;
     var travelerProb = def.cat.indexOf('ITF') === 0 ? 0.12 : 0.25;
     var pool = [], farPool = [];
     for(var i = 0; i < state.players.length; i++){
@@ -512,7 +511,7 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
   }
 
   // Escala de experiencia por categoria: ganar en un GS ensenia mas que en un future
-  var CAT_XP = {GS:2.0, M1000:1.6, '500':1.3, '250':1.1, CH125:0.9, CH75:0.8, ITF25:0.6, ITF15:0.5, FINALS:2.0};
+  var CAT_XP = {GS:2.0, M1000:1.6, '500':1.3, '250':1.1, CH175:1.0, CH125:0.9, CH100:0.85, CH75:0.8, CH50:0.7, ITF25:0.6, ITF15:0.5, FINALS:2.0};
 
   // Experiencia de partido: bumps a atributos aleatorios; devuelve la lista de mejoras
   function grantMatchXp(p, cat, isWinner, rng){

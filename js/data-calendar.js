@@ -108,8 +108,11 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     M1000:  {draw:64,  pts:[10,50,100,200,400,650,1000],     minRank:1,   maxRank:85,   color:'#b23b3b', label:'Masters 1000'},
     '500':  {draw:32,  pts:[0,50,100,200,330,500],           minRank:1,   maxRank:80,   color:'#2e6da4', label:'ATP 500'},
     '250':  {draw:32,  pts:[0,25,50,100,165,250],            minRank:1,   maxRank:150,  color:'#3a8f5f', label:'ATP 250'},
+    CH175:  {draw:32,  pts:[0,20,35,63,105,175],             minRank:35,  maxRank:350,  idealMin:60,  color:'#7a4a28', label:'Challenger 175'},
     CH125:  {draw:32,  pts:[0,14,25,45,75,125],              minRank:40,  maxRank:450,  idealMin:100, color:'#8a6d3b', label:'Challenger 125'},
+    CH100:  {draw:32,  pts:[0,11,20,36,60,100],              minRank:60,  maxRank:600,  idealMin:150, color:'#8f7444', label:'Challenger 100'},
     CH75:   {draw:32,  pts:[0,8,14,25,44,75],                minRank:80,  maxRank:800,  idealMin:200, color:'#9c7c4c', label:'Challenger 75'},
+    CH50:   {draw:32,  pts:[0,6,10,18,30,50],                minRank:100, maxRank:1100, idealMin:280, color:'#a8905f', label:'Challenger 50'},
     ITF25:  {draw:32,  pts:[0,2,4,8,14,25],                  minRank:300, maxRank:99999,idealMin:350, color:'#6c757d', label:'ITF M25'},
     ITF15:  {draw:32,  pts:[0,1,2,5,9,15],                   minRank:450, maxRank:99999,idealMin:500, color:'#7d868e', label:'ITF M15'},
     FINALS: {draw:8,   pts:null,                             minRank:1,   maxRank:8,    color:'#4b3b8f', label:'ATP Finals'}
