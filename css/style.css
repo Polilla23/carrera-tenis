@@ -384,8 +384,93 @@ details.round summary { cursor: pointer; font-weight: 800; color: var(--muted); 
 .spinner { width: 46px; height: 46px; border: 4px solid var(--line2); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; box-shadow: 0 0 30px rgba(200,243,29,.15); }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-@media (max-width: 700px) {
+/* ============ MOBILE ============ */
+button, .chip, .tab, .trow, .plink, .tlink { touch-action: manipulation; }
+
+@media (max-width: 720px) {
+  body { font-size: 13px; }
+  #app { padding: 0 8px 150px; }
+
+  .menu-title { font-size: 46px; }
+  .menu-btn { width: min(320px, 88vw); }
+
+  /* creacion */
   .arch-grid, .groups { grid-template-columns: 1fr; }
-  .topbar { gap: 12px; }
-  .menu-title { font-size: 52px; }
+  .create-box { padding: 18px; margin: 12px auto; }
+  .surf-row { flex-wrap: wrap; }
+  .surf-btn { flex: 1 1 40%; }
+  .slider-row .an { width: 74px; font-size: 11px; }
+
+  /* topbar compacto, sin sticky (en el celu el espacio vertical vale oro) */
+  .topbar { position: static; padding: 10px; margin: 0 -8px 10px; gap: 8px 14px; }
+  .avatar { width: 36px; height: 36px; font-size: 14px; }
+  .topbar .who .nm { font-size: 14px; }
+  .topbar .who .cc { font-size: 11px; }
+  .hero-rank .v { font-size: 24px; }
+  .topbar .stat .v { font-size: 13px; }
+  .ebar { width: 84px; }
+  .datechip { padding: 4px 10px; font-size: 12px; }
+
+  /* tabs y filtros: una linea con scroll horizontal */
+  .tabs, .cal-filters {
+    flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px; scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar, .cal-filters::-webkit-scrollbar { display: none; }
+  .tab { padding: 8px 12px; font-size: 11px; flex-shrink: 0; }
+  .chip { flex-shrink: 0; white-space: nowrap; }
+
+  .panel { padding: 10px; border-radius: 12px; }
+  .month-head { font-size: 19px; }
+
+  /* filas de torneo: nombre arriba, datos abajo */
+  .trow { flex-wrap: wrap; gap: 6px 10px; padding: 9px 10px; }
+  .trow .tname { flex-basis: 100%; order: -1; font-size: 13.5px; }
+  .trow .dates { width: auto; font-size: 11px; }
+  .trow .status { font-size: 11px; margin-left: auto; }
+  .badge { min-width: 0; font-size: 9px; padding: 3px 7px; }
+
+  /* tablas */
+  table.rank td, table.rank th { padding: 6px 5px; font-size: 12px; }
+  table.rank td.num { font-size: 13px; width: 30px; }
+  .mv { display: block; margin-left: 0; }
+
+  /* atributos */
+  .attr-grid { grid-template-columns: 1fr; }
+  .attr-row .an { width: 78px; font-size: 11px; }
+  .adelta-slot { width: 38px; }
+  .pstats { gap: 14px 20px; }
+  .pstats .stat .v { font-size: 18px; }
+
+  /* llave: columnas mas angostas, scroll tactil */
+  .bracket-wrap { -webkit-overflow-scrolling: touch; margin: 0 -10px; padding: 10px 10px 14px; }
+  .bcol { width: 196px; padding-right: 26px; }
+  .bmatch { font-size: 11.5px; }
+  .bchamp { width: 140px; }
+  .bchamp .cname { font-size: 13px; }
+
+  /* modal: cara a cara apilado */
+  #modal { padding: 16px; border-radius: 14px; }
+  #modal h2 { font-size: 21px; }
+  .face2face { flex-direction: column; gap: 8px; }
+  .f2f-p { width: 100%; padding: 12px; }
+  .f2f-vs { font-size: 18px; }
+  .score-line { font-size: 28px; letter-spacing: 2px; min-height: 36px; }
+  .verdict { font-size: 26px; }
+  #modal .attr-row .an { width: 74px; }
+  #modal .adelta-slot { width: 36px; }
+
+  /* barra de acciones fija: boton grande en su propia fila */
+  .actionbar {
+    gap: 8px; padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px));
+  }
+  .actionbar .seg button { padding: 8px 10px; font-size: 11px; }
+  .actionbar select { padding: 8px 9px; font-size: 13px; max-width: 44vw; }
+  .advance-btn { flex: 1 1 100%; order: 9; padding: 13px 10px; font-size: 17px; }
+  .actionbar .btn { font-size: 12px; padding: 7px 10px; }
+
+  .agenda-leg { margin-left: 8px; font-size: 12px; }
+  .legend-row { flex-wrap: wrap; }
+
+  canvas#rankchart { height: 130px; }
 }

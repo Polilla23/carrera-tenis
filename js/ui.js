@@ -1131,18 +1131,29 @@ var UI = {};
       ctx.fillText(label, bx + 8, by + 15);
     }
 
-    // interaccion: buscar el punto mas cercano al mouse
-    cv.onmousemove = function(e){
+    // interaccion: buscar el punto mas cercano al mouse o al dedo
+    function pickPoint(clientX){
       var rect = cv.getBoundingClientRect();
-      var mx = (e.clientX - rect.left) * (cv.width / rect.width);
-      var bestI = null, bestD = 28;
+      var mx = (clientX - rect.left) * (cv.width / rect.width);
+      var bestI = null, bestD = 34;
       for(var i = 0; i < data.length; i++){
         var d = Math.abs(X(data[i][0]) - mx);
         if(d < bestD){ bestD = d; bestI = i; }
       }
+      return bestI;
+    }
+    cv.onmousemove = function(e){
+      var bestI = pickPoint(e.clientX);
       if(bestI !== hoverIdx) drawRankChart(bestI);
     };
     cv.onmouseleave = function(){ drawRankChart(); };
+    cv.ontouchstart = cv.ontouchmove = function(e){
+      if(!e.touches || !e.touches.length) return;
+      e.preventDefault();
+      var bestI = pickPoint(e.touches[0].clientX);
+      if(bestI !== hoverIdx) drawRankChart(bestI);
+    };
+    cv.ontouchend = function(){ setTimeout(function(){ drawRankChart(); }, 1400); };
   }
 
   function roundRect(ctx, x, y, w, h, r){
