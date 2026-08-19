@@ -586,7 +586,7 @@ var UI = {};
       badgeHtml(d.cat) +
       sdotHtml(d.surf) +
       '<div class="tname tlink" data-detail="' + d.id + '" title="Ver detalle del torneo">' + esc(d.name) +
-        (geoOf(d) ? ' <span style="color:var(--muted);font-size:11px;font-weight:400">📍 ' + esc(geoOf(d)) + '</span>' : '') + '</div>' +
+        (geoOf(d) ? ' <span class="tgeo">📍 ' + esc(geoOf(d)) + '</span>' : '') + '</div>' +
       '<div class="status">' + status + '</div>' + btn +
     '</div>';
   }
