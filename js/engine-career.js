@@ -43,9 +43,11 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     // pre-simular la temporada 2025 para que el ranking arranque vivo
     TC.presimSeason(state);
 
-    // dejar lista la temporada 2026 (envejecimiento + calendario) antes de que arranque la carrera
-    TC._seasonRollover(state, state.rng);
-    TC.buildSeason(state, 2026);
+    // la presim ya rota a 2026 el 26/12; esto queda como respaldo por si no paso
+    if(state.seasonYear !== 2026){
+      TC._seasonRollover(state, state.rng);
+      TC.buildSeason(state, 2026);
+    }
 
     // crear al humano
     var arch = TC.ARCHETYPES[cfg.archetype] || TC.ARCHETYPES.completo;
@@ -78,7 +80,7 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
 
     TC.recomputeRankings(state);
     TC.pushNews(state, 'Pretemporada: ya podes inscribirte a los torneos de enero.', true);
-    TC.pushNews(state, 'Empieza tu carrera profesional, ' + cfg.name + '. Tenes 17 anios. A demostrar!', true);
+    TC.pushNews(state, 'Empieza tu carrera profesional, ' + cfg.name + '. Tenes 17 años. A demostrar!', true);
     return state;
   };
 
@@ -177,6 +179,20 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
   // ================== AVANCE ==================
   // Avanza hasta el proximo evento. Devuelve {type: 'match'|'week'|'news', ...}
   TC.advance = function(state, mode){
+    // fin de año: avanzar directo hasta la pretemporada (26 de diciembre, ya con el calendario nuevo)
+    if(mode === 'yearend'){
+      var guard = 0;
+      while(guard++ < 70){
+        if(state.pendingMatch) return {type:'match'};
+        var rr = TC.stepDay(state);
+        TC.cleanRegistrations(state);
+        if(rr === 'pending') return {type:'match'};
+        // el 26/12 ya se proceso (rollover + calendario nuevo): frenamos en la pretemporada
+        var dt = TC.dateOf(state.day);
+        if(dt.getUTCMonth() === 11 && dt.getUTCDate() >= 27) return {type:'yearend'};
+      }
+      return {type:'yearend'};
+    }
     var maxDays = mode === 'week' ? 7 : (mode === 'nextTournament' ? 120 : 1);
     var startDay = state.day;
     for(var i = 0; i < maxDays; i++){

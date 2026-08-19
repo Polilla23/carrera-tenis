@@ -229,6 +229,7 @@ select option { background-color: #161d26; color: #eef2f7; }
 }
 .advance-btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
 .advance-btn.match { background: var(--danger); color: #fff; box-shadow: 0 0 28px rgba(255,93,85,.45); animation: pulse 1.2s infinite; }
+.nextreg { font-size: 12px; font-weight: 600; color: var(--text); background: var(--card); border: 1px solid var(--line); padding: 6px 12px; border-radius: 16px; }
 @keyframes pulse { 50% { filter: brightness(1.22); } }
 
 /* ============ JUGADOR ============ */

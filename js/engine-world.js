@@ -169,7 +169,7 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     sched.sort(function(a, b){ return a.startDay - b.startDay || catRank(a.cat) - catRank(b.cat); });
     state.schedule = sched;
     state.seasonYear = year;
-    // foto de los rankings al arranque del anio (para el recap y la "revelacion")
+    // foto de los rankings al arranque del año (para el recap y la "revelacion")
     var rsMap = {};
     for(var ri = 0; ri < state.players.length; ri++) rsMap[state.players[ri].id] = state.players[ri].rank;
     state.rankStart = {year: year, ranks: rsMap};
@@ -911,7 +911,7 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
   TC._finishQualiRoundPublic = finishQualiRound;
   TC._seasonRollover = seasonRollover;
 
-  // Puntos que el humano defiende en la proxima edicion de un torneo (los del anio pasado)
+  // Puntos que el humano defiende en la proxima edicion de un torneo (los del año pasado)
   TC.defending = function(state, def){
     if(!def.baseId) return 0;
     var h = state.players[state.humanId];
@@ -986,18 +986,19 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
   TC.stepDay = function(state){
     var rng = state.rng;
 
-    // Nueva temporada el 1 de enero
+    // Cambio de temporada: el 26 de diciembre cierra el año y ya abre el calendario nuevo
+    // (asi llegas fresco y con tiempo de inscribirte a los torneos del 1 de enero)
     var dt = TC.dateOf(state.day);
-    if(dt.getUTCMonth() === 0 && dt.getUTCDate() === 1){
-      var year = dt.getUTCFullYear();
-      if(state.seasonYear !== year){
-        if(state.seasonYear){
-          if(!state.presim && state.humanId != null) buildRecap(state, state.seasonYear);
-          seasonRollover(state, rng);
-        }
-        TC.buildSeason(state, year);
-        if(!state.presim) pushNews(state, 'Arranca la temporada ' + year, false);
+    var newYear = null;
+    if(dt.getUTCMonth() === 11 && dt.getUTCDate() === 26) newYear = dt.getUTCFullYear() + 1;
+    else if(dt.getUTCMonth() === 0 && dt.getUTCDate() === 1) newYear = dt.getUTCFullYear(); // respaldo para partidas viejas
+    if(newYear && state.seasonYear !== newYear){
+      if(state.seasonYear){
+        if(!state.presim && state.humanId != null) buildRecap(state, state.seasonYear);
+        seasonRollover(state, rng);
       }
+      TC.buildSeason(state, newYear);
+      if(!state.presim) pushNews(state, 'Pretemporada: ya esta el calendario ' + newYear + '. Inscribite a los torneos de enero.', true);
     }
 
     // Rankings cada 7 dias
@@ -1222,6 +1223,8 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     for(var i = 0; i < ps.length; i++){
       var p = ps[i];
       p.age++;
+      // vacaciones + pretemporada: todos arrancan el año a full
+      if(!p.injury) p.energy = Math.max(p.energy, 95);
       // podar resultados viejos
       var cutoff = state.day - 400;
       p.results = p.results.filter(function(r){ return r.day > cutoff; });

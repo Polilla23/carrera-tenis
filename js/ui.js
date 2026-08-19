@@ -12,7 +12,7 @@ var UI = {};
   var archivePlayed = 'all'; // 'all' | 'mine' (solo torneos que jugue)
   var detailId = null;       // torneo abierto en el visor de detalle (def del calendario)
   var archInstId = null;     // torneo abierto desde el archivo (instancia)
-  var archiveYear = null;    // anio seleccionado en el archivo
+  var archiveYear = null;    // año seleccionado en el archivo
   var archiveMonth = 'all';  // mes (0-11) o 'all'
   var archiveSurf = 'all';   // superficie o 'all'
   var archiveCat = 'all';    // grupo: 'all' | 'atp' | 'ch' | 'itf'
@@ -144,7 +144,7 @@ var UI = {};
         '</div>' +
         '<div style="display:flex;gap:10px;margin-top:22px">' +
           '<button class="btn" id="c-back">Volver</button>' +
-          '<button class="btn primary" style="flex:1;padding:12px" id="c-go">Empezar carrera (17 anios)</button>' +
+          '<button class="btn primary" style="flex:1;padding:12px" id="c-go">Empezar carrera (17 años)</button>' +
         '</div>' +
       '</div>';
 
@@ -232,7 +232,7 @@ var UI = {};
     var ecolor = h.energy > 70 ? 'var(--accent2)' : (h.energy > 40 ? 'var(--warn)' : 'var(--danger)');
     return '<div class="topbar">' +
       '<div class="avatar">' + esc(initials(h.name).toUpperCase()) + '</div>' +
-      '<div class="who"><div class="nm">' + esc(h.name) + '</div><div class="cc">' + h.country + ' · ' + h.age + ' anios · <span class="stars">' + starsOf(h) + '</span></div></div>' +
+      '<div class="who"><div class="nm">' + esc(h.name) + '</div><div class="cc">' + h.country + ' · ' + h.age + ' años · <span class="stars">' + starsOf(h) + '</span></div></div>' +
       '<div class="hero-rank"><div class="v">' + (h.rank === 9999 ? 'NR' : '#' + h.rank) + '</div><div class="l">Ranking</div></div>' +
       '<div class="stat"><div class="v">' + h.pts + '</div><div class="l">Puntos</div></div>' +
       '<div class="stat"><div class="v">' + fmtForm(h.form) + '</div><div class="l">Forma</div></div>' +
@@ -402,7 +402,7 @@ var UI = {};
 
     // filtros: mes, superficie, categoria
     html += '<div class="cal-filters">' +
-      '<button class="chip' + (archiveMonth === 'all' ? ' on' : '') + '" data-amonth="all">Todo el anio</button>' +
+      '<button class="chip' + (archiveMonth === 'all' ? ' on' : '') + '" data-amonth="all">Todo el año</button>' +
       TC.MESES.map(function(m, i){
         return '<button class="chip' + (archiveMonth === i ? ' on' : '') + '" data-amonth="' + i + '">' + m.slice(0, 3) + '</button>';
       }).join('') + '</div>';
@@ -1073,7 +1073,7 @@ var UI = {};
 
     html += '<h3 class="section">Evolucion del ranking</h3>' +
       '<div class="cal-filters" style="margin-bottom:8px">' +
-        [['3m','3 meses'],['1y','1 anio'],['all','Toda la carrera']].map(function(r){
+        [['3m','3 meses'],['1y','1 año'],['all','Toda la carrera']].map(function(r){
           return '<button class="chip' + (chartRange === r[0] ? ' on' : '') + '" data-crange="' + r[0] + '">' + r[1] + '</button>';
         }).join('') +
       '</div>' +
@@ -1183,7 +1183,7 @@ var UI = {};
       ctx.fillText('#' + r, 6, y + 3);
     });
 
-    // ticks del eje X segun el rango: meses o anios
+    // ticks del eje X segun el rango: meses o años
     var d0 = TC.dateOf(x0), d1 = TC.dateOf(x1);
     var totalDays = x1 - x0;
     var ticks = [];
@@ -1197,7 +1197,7 @@ var UI = {};
       }
       if(totalDays > 200){ ticks = ticks.filter(function(_, i){ return i % 2 === 0; }); }
     } else {
-      // un tick por anio
+      // un tick por año
       for(var y2 = d0.getUTCFullYear() + 1; y2 <= d1.getUTCFullYear(); y2++){
         ticks.push({day: TC.dayOf(y2, 1, 1), label: String(y2)});
       }
@@ -1377,6 +1377,37 @@ var UI = {};
     return html + '</div>';
   }
 
+  // La temporada termino? (paso el ultimo torneo del calendario y no queda nada por jugar)
+  function seasonIsOver(){
+    var h = human();
+    if(h.curT != null || S.pendingMatch) return false;
+    var dt = TC.dateOf(S.day);
+    if(dt.getUTCMonth() === 11 && dt.getUTCDate() >= 26) return false; // ya estamos en pretemporada
+    var lastEnd = 0;
+    for(var i = 0; i < S.schedule.length; i++){
+      var e = S.schedule[i].startDay + S.schedule[i].dur - 1;
+      if(e > lastEnd) lastEnd = e;
+    }
+    return S.day > lastEnd;
+  }
+
+  // Info del proximo torneo inscripto: fecha y cuanto falta
+  function renderNextRegInfo(){
+    var best = null;
+    for(var i = 0; i < S.registrations.length; i++){
+      var d = TC.findDef(S, S.registrations[i]);
+      if(d && d.startDay > S.day && (!best || d.startDay < best.startDay)) best = d;
+    }
+    if(!best){
+      var h = human();
+      if(h.curT != null) return '';
+      return '<div class="nextreg" style="color:var(--muted)">Sin inscripciones proximas</div>';
+    }
+    var days = best.startDay - S.day;
+    var when = days <= 6 ? 'esta semana' : (days <= 13 ? 'en 1 semana' : 'en ' + Math.round(days / 7) + ' semanas');
+    return '<div class="nextreg">🎾 ' + esc(best.name) + ' · <b>' + TC.fmtDate(best.startDay) + '</b> · ' + when + '</div>';
+  }
+
   function renderActionBar(){
     var h = human();
     var pending = !!S.pendingMatch;
@@ -1403,9 +1434,12 @@ var UI = {};
         ? '<button class="advance-btn match" id="btn-advance">JUGAR ' + esc(pendingRoundLabel().toUpperCase()) + '</button>'
         : (inTournament
           ? '<button class="advance-btn" id="btn-advance">SIGUIENTE PARTIDO ▶</button>'
-          : '<button class="advance-btn" id="btn-advance">AVANZAR SEMANA ▶</button>' +
-            '<button class="btn" id="btn-next-t" title="Avanza hasta tu proximo torneo o partido">⏩ Proximo torneo</button>')
+          : (seasonIsOver()
+            ? '<button class="advance-btn" id="btn-advance" data-yearend="1">TERMINAR EL AÑO ⏩</button>'
+            : '<button class="advance-btn" id="btn-advance">AVANZAR SEMANA ▶</button>' +
+              '<button class="btn" id="btn-next-t" title="Avanza hasta tu proximo torneo o partido">⏩ Proximo torneo</button>'))
       ) +
+      renderNextRegInfo() +
     '</div>';
   }
 
@@ -1476,7 +1510,7 @@ var UI = {};
 
     $('btn-advance').onclick = function(){
       if(S.pendingMatch){ openMatchModal(); return; }
-      doAdvance('week');
+      doAdvance(this.dataset.yearend ? 'yearend' : 'week');
     };
     var nt = $('btn-next-t');
     if(nt) nt.onclick = function(){ doAdvance('nextTournament'); };
@@ -1570,7 +1604,7 @@ var UI = {};
     openModal(
       '<div>' +
         '<h2>' + esc(p.name) + (id === S.humanId ? ' <span style="color:var(--accent);font-size:13px">(vos)</span>' : '') + '</h2>' +
-        '<div class="modal-note" style="margin-top:2px">' + p.country + ' · ' + p.age + ' anios · ' + (p.ht ? (p.ht / 100).toFixed(2) + 'm · ' : '') + (p.hand === 'Z' ? 'Zurdo' : 'Diestro') + ' · Prefiere ' + surfHtml(p.pref) +
+        '<div class="modal-note" style="margin-top:2px">' + p.country + ' · ' + p.age + ' años · ' + (p.ht ? (p.ht / 100).toFixed(2) + 'm · ' : '') + (p.hand === 'Z' ? 'Zurdo' : 'Diestro') + ' · Prefiere ' + surfHtml(p.pref) +
           ' · Nivel <span class="stars">' + starsOf(p) + '</span>' +
           (!p.isHuman && p.pot != null && p.age <= 23 ? ' · Potencial <span class="stars">' + starsVal(p.pot) + '</span>' : '') +
           (p.injury ? ' · <span style="color:var(--danger)">Lesionado: ' + esc(p.injury.name) + ' (' + p.injury.days + 'd)</span>' : '') + '</div>' +
@@ -1637,7 +1671,7 @@ var UI = {};
             '<div class="meta">Nivel <span class="stars">' + starsOf(h) + '</span></div></div>' +
           '<div class="f2f-vs">VS</div>' +
           '<div class="f2f-p"><div class="nm plink" data-player="' + opp.id + '" title="Ver ficha">' + esc(opp.name) + '</div>' +
-            '<div class="meta">' + (opp.rank === 9999 ? 'NR' : '#' + opp.rank) + ' · ' + opp.country + ' · ' + opp.age + ' anios · Energia ' + Math.round(opp.energy) + '% · ' + fmtForm(opp.form) + '</div>' +
+            '<div class="meta">' + (opp.rank === 9999 ? 'NR' : '#' + opp.rank) + ' · ' + opp.country + ' · ' + opp.age + ' años · Energia ' + Math.round(opp.energy) + '% · ' + fmtForm(opp.form) + '</div>' +
             '<div class="meta">Nivel <span class="stars">' + starsOf(opp) + '</span> · Prefiere ' + surfHtml(opp.pref) + '</div>' +
             (S.h2h && S.h2h[opp.id] ? '<div class="meta">H2H: ' + h2hLabel(S.h2h[opp.id]) + '</div>' : '') + '</div>' +
         '</div>' +
@@ -1742,7 +1776,7 @@ var UI = {};
     var hu = r.human;
     var html = '<div>' +
       '<h2 style="text-align:center">Resumen ' + r.y + '</h2>' +
-      '<h3 class="section">Tu anio</h3>' +
+      '<h3 class="section">Tu año</h3>' +
       '<div class="pstats">' +
         stat((hu.rankStart ? '#' + hu.rankStart : 'NR') + ' → ' + (hu.rank ? '#' + hu.rank : 'NR'), 'Ranking') +
         stat(hu.wins + '-' + hu.losses, 'Record') +
@@ -1755,7 +1789,7 @@ var UI = {};
     if(hu.best && hu.best.pts > 0 && !hu.titles.length){
       html += '<div class="modal-note">Tu mejor resultado: ' + esc(hu.best.name) + ' (' + hu.best.pts + ' pts)</div>';
     }
-    html += '<h3 class="section">El anio del circuito</h3>';
+    html += '<h3 class="section">El año del circuito</h3>';
     if(r.top5 && r.top5.length){
       html += '<table class="rank">' + r.top5.map(function(p){
         return '<tr><td class="num">' + p.rank + '</td><td>' + esc(p.name) + '</td><td style="text-align:right">' + p.pts + ' pts</td></tr>';
@@ -1771,7 +1805,7 @@ var UI = {};
       html += '<div class="modal-note">Mas titulos ATP: ' + r.most.map(function(m){ return esc(m.name) + ' (' + m.n + ')'; }).join(' · ') + '</div>';
     }
     if(r.climber){
-      html += '<div class="modal-note" style="color:var(--accent2)">📈 Revelacion del anio: ' + esc(r.climber.name) + ' (' + (r.climber.from === 'NR' ? 'NR' : '#' + r.climber.from) + ' → #' + r.climber.to + ')</div>';
+      html += '<div class="modal-note" style="color:var(--accent2)">📈 Revelacion del año: ' + esc(r.climber.name) + ' (' + (r.climber.from === 'NR' ? 'NR' : '#' + r.climber.from) + ' → #' + r.climber.to + ')</div>';
     }
     html += '<div class="modal-actions"><button class="btn primary" id="recap-close">Cerrar</button></div></div>';
     openModal(html);
@@ -1786,7 +1820,7 @@ var UI = {};
     openModal(
       '<div class="match-card">' +
         '<h2>Fin de carrera</h2>' +
-        '<div class="modal-note">' + esc(h.name) + ' se retira a los ' + h.age + ' anios.</div>' +
+        '<div class="modal-note">' + esc(h.name) + ' se retira a los ' + h.age + ' años.</div>' +
         '<div class="pstats" style="justify-content:center;margin:16px 0">' +
           stat(S.career.bestRank === 9999 ? '—' : '#' + S.career.bestRank, 'Mejor ranking') +
           stat(S.career.titles.length, 'Titulos') +
