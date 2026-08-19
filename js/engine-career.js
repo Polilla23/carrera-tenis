@@ -75,6 +75,7 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     for(k in arch.attrs) snap[k] = h[k];
     h.prev = snap;
     h.loc = TC.playerRegion(h); // arrancas en casa
+    h.lastMatchDay = state.day - 7; // venis con rodaje de juveniles
     state.players.push(h);
     state.humanId = h.id;
 
@@ -316,6 +317,10 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
         for(var q = 0; q < state.players.length; q++){
           state.players[q].ht = state.players[q].isHuman ? 183 : TC._rollHeight(rng3);
         }
+      }
+      // compat: ritmo de competencia
+      if(state.humanId != null && state.players[state.humanId].lastMatchDay === undefined){
+        state.players[state.humanId].lastMatchDay = state.day - 7;
       }
       // compat: marcar en el archivo que torneos jugo el humano (partidas de antes de esta version)
       if(state.archive && state.archive.length && state.archive[0].my === undefined && state.humanId != null){

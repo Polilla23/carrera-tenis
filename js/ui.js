@@ -1064,6 +1064,7 @@ var UI = {};
       stat(h.pts, 'Puntos') +
       stat(h.wins + '-' + h.losses, 'Victorias') +
       stat(S.career.titles.length, 'Titulos') +
+      stat(rhythmLabel(h), 'Ritmo') +
       stat('<span class="stars">' + starsOf(h) + '</span>', 'Calidad') +
       stat(TC.overall(h).toFixed(2), 'Nivel general') +
       stat(surfHtml(h.pref), 'Superficie') +
@@ -1103,6 +1104,15 @@ var UI = {};
   }
 
   function stat(v, l){ return '<div class="stat"><div class="v">' + v + '</div><div class="l">' + l + '</div></div>'; }
+
+  // Ritmo de competencia: hace cuanto no jugas un partido oficial
+  function rhythmLabel(h){
+    var r = TC.rhythmOf(S, h);
+    if(r.weeks <= 4) return '<span style="color:var(--accent2)" title="Estas en ritmo de competencia: el entrenamiento rinde al 100%">🔥 En ritmo</span>';
+    var pct = Math.round(r.mult * 100);
+    if(r.weeks <= 8) return '<span style="color:var(--warn)" title="Hace ' + Math.floor(r.weeks) + ' semanas que no jugas: el entrenamiento rinde al ' + pct + '%">🟡 Poco rodaje</span>';
+    return '<span style="color:var(--danger)" title="Hace ' + Math.floor(r.weeks) + ' semanas que no competis: el entrenamiento rinde al ' + pct + '% y tu forma cae">🔴 Oxidado</span>';
+  }
 
   // Variacion del atributo vs el snapshot mensual (▲ verde / ▼ rojo).
   // Siempre ocupa el mismo ancho para que las barras queden alineadas.
@@ -1430,6 +1440,8 @@ var UI = {};
         renderStaySeg(h))
       ) +
       (!h.injury && h.energy < 30 ? '<span style="color:var(--danger);font-size:12px;font-weight:800">⚠️ FUNDIDO: riesgo alto de lesion grave</span>' : '') +
+      (!h.injury && !inTournament && !pending && S.action === 'train' && TC.rhythmOf(S, h).weeks > 4 ?
+        '<span style="color:var(--warn);font-size:12px;font-weight:700" title="Anotate a un torneo para recuperar el ritmo">🟡 Sin partidos hace ' + Math.floor(TC.rhythmOf(S, h).weeks) + ' sem: entrenas al ' + Math.round(TC.rhythmOf(S, h).mult * 100) + '%</span>' : '') +
       (pending
         ? '<button class="advance-btn match" id="btn-advance">JUGAR ' + esc(pendingRoundLabel().toUpperCase()) + '</button>'
         : (inTournament

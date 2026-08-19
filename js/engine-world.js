@@ -532,9 +532,19 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     return gains;
   }
 
+  // Ritmo de competencia: cuanto rinde el entrenamiento segun hace cuanto no jugas un partido oficial
+  TC.rhythmOf = function(state, p){
+    var last = p.lastMatchDay != null ? p.lastMatchDay : state.day - 7;
+    var weeks = Math.max(0, (state.day - last) / 7);
+    var mult = weeks <= 4 ? 1 : Math.max(0.3, 1 - 0.09 * (weeks - 4));
+    return {weeks: weeks, mult: mult};
+  };
+
   // Juega un partido entre dos jugadores del mundo, aplica energia/forma/lesion
   TC.playWorldMatch = function(state, aId, bId, inst, rng){
     var A = state.players[aId], B = state.players[bId];
+    A.lastMatchDay = state.day;
+    B.lastMatchDay = state.day;
     var result = TC.simMatch(playerForMatch(A), playerForMatch(B), {surface: inst.surf, bestOf: inst.bestOf, rng: rng});
     var winner = result.winner === 0 ? A : B;
     var loser = result.winner === 0 ? B : A;
@@ -1117,6 +1127,8 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
           p.injury = null;
           p.form = Math.max(-1, p.form - 0.2);
           p.energy = Math.min(p.energy, 55); // nadie vuelve al 100% de una lesion
+          // el tiempo lesionado no cuenta como "falta de ritmo" (gracia de 3 semanas)
+          if(p.lastMatchDay != null) p.lastMatchDay = Math.max(p.lastMatchDay, state.day - 21);
         }
         continue;
       }
@@ -1137,6 +1149,13 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
       for(i = 0; i < ps.length; i++){
         var noise = (i === state.humanId) ? (rng() - 0.5) * 0.15 : (rng() - 0.5) * 0.3;
         ps[i].form = Math.max(-1, Math.min(1, ps[i].form * 0.8 + noise));
+      }
+      // oxidado: mucho tiempo sin competir baja la forma del humano (volver cuesta)
+      if(state.humanId != null){
+        var hu = ps[state.humanId];
+        if(!hu.injury && TC.rhythmOf(state, hu).weeks > 6){
+          hu.form = Math.max(-0.5, hu.form - 0.08);
+        }
       }
     }
 
@@ -1204,7 +1223,9 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
       var curve = Math.max(0.1, (10.2 - p[focus]) / 6);
       // cuanto mas fundido, menos rinde el entrenamiento
       var eff = 0.4 + 0.6 * Math.min(1, p.energy / 55);
-      p[focus] = Math.min(9.8, Math.round((p[focus] + 0.006 * ageF * curve * eff) * 10000) / 10000);
+      // sin ritmo de partidos oficiales, el entrenamiento rinde cada vez menos
+      var ritmo = TC.rhythmOf(state, p).mult;
+      p[focus] = Math.min(9.8, Math.round((p[focus] + 0.006 * ageF * curve * eff * ritmo) * 10000) / 10000);
       // riesgo de lesion entrenando: crece fuerte con el cansancio
       var riskT = p.energy < 45 ? 0.002 + ((45 - p.energy) / 45) * 0.02 : 0.0004;
       if(rng() < riskT){
