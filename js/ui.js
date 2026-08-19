@@ -8,6 +8,7 @@ var UI = {};
   var calSurf = 'all';       // filtro de superficie del calendario
   var calRegion = 'all';     // filtro de region del calendario
   var archiveRegion = 'all'; // filtro de region del archivo
+  var archivePlayed = 'all'; // 'all' | 'mine' (solo torneos que jugue)
   var detailId = null;       // torneo abierto en el visor de detalle (def del calendario)
   var archInstId = null;     // torneo abierto desde el archivo (instancia)
   var archiveYear = null;    // anio seleccionado en el archivo
@@ -389,7 +390,11 @@ var UI = {};
     years.sort(function(a, b){ return b - a; });
     if(archiveYear == null || years.indexOf(archiveYear) < 0) archiveYear = years[0];
 
-    var html = '<div class="cal-filters">' + years.map(function(y){
+    var html = '<div class="cal-filters">' +
+      '<button class="chip' + (archivePlayed === 'all' ? ' on' : '') + '" data-aplayed="all">Todos los torneos</button>' +
+      '<button class="chip' + (archivePlayed === 'mine' ? ' on' : '') + '" data-aplayed="mine">🎾 Jugados por mi</button>' +
+    '</div>';
+    html += '<div class="cal-filters">' + years.map(function(y){
       return '<button class="chip' + (y === archiveYear ? ' on' : '') + '" data-ayear="' + y + '">' + y + '</button>';
     }).join('') + '</div>';
 
@@ -424,6 +429,7 @@ var UI = {};
 
     var entries = arc.filter(function(e){
       if(e.y !== archiveYear) return false;
+      if(archivePlayed === 'mine' && !e.my) return false;
       if(archiveMonth !== 'all' && TC.dateOf(e.startDay).getUTCMonth() !== archiveMonth) return false;
       if(archiveSurf !== 'all' && e.surf !== archiveSurf) return false;
       if(archiveRegion !== 'all' && e.region !== archiveRegion) return false;
@@ -441,12 +447,20 @@ var UI = {};
       }
       var cat = TC.CATS[e.cat];
       var hasData = !!findFinishedInst(e.instId);
-      var mine = e.champId === S.humanId ? ' reg' : '';
+      var mine = e.champId === S.humanId ? ' reg' : (e.my ? ' played' : '');
+      var myChip = '';
+      if(e.my){
+        if(e.my.champ) myChip = '<span class="rchip champ">Campeon</span>';
+        else if(e.my.rw == null) myChip = '<span class="rchip">Jugado</span>';
+        else if(e.my.q) myChip = '<span class="rchip">Qualy</span>';
+        else myChip = resultChip({cat: e.cat, rw: e.my.rw, champ: false});
+      }
       html += '<div class="trow s-' + e.surf + mine + '">' +
         '<div class="dates">' + TC.fmtRange(e.startDay, e.startDay + e.dur - 1) + '</div>' +
         '<span class="badge" style="background:' + cat.color + '">' + esc(cat.label) + '</span>' +
         sdotHtml(e.surf) +
         '<div class="tname' + (hasData ? ' tlink" data-adetail="' + e.instId + '" title="Ver cuadro"' : '"') + '>' + esc(e.name) + '</div>' +
+        myChip +
         '<div class="status">🏆 ' + archiveName(e.champId, e.champ, true) +
           (e.runner ? ' <span style="opacity:.65">d. ' + archiveName(e.runnerId, e.runner, false) + '</span>' : '') + '</div>' +
       '</div>';
@@ -1382,6 +1396,7 @@ var UI = {};
       if(t.dataset.csurf){ calSurf = t.dataset.csurf; render(); return; }
       if(t.dataset.cregion){ calRegion = t.dataset.cregion; render(); return; }
       if(t.dataset.aregion){ archiveRegion = t.dataset.aregion; render(); return; }
+      if(t.dataset.aplayed){ archivePlayed = t.dataset.aplayed; render(); return; }
       if(t.dataset.crange){ chartRange = t.dataset.crange; render(); return; }
       if(t.dataset.ayear){ archiveYear = parseInt(t.dataset.ayear, 10); render(); return; }
       if(t.dataset.amonth != null){ archiveMonth = t.dataset.amonth === 'all' ? 'all' : parseInt(t.dataset.amonth, 10); render(); return; }

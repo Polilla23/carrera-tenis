@@ -179,6 +179,7 @@ details.legend summary { cursor: pointer; color: var(--muted); font-size: 12px; 
 .trow.s-indoor { border-left-color: var(--indoor); }
 .trow.now { box-shadow: 0 0 0 1px var(--accent2); }
 .trow.reg { box-shadow: 0 0 0 1px var(--accent); background: rgba(200,243,29,.05); }
+.trow.played { background: rgba(200,243,29,.03); }
 .trow > * { min-width: 0; }
 .trow .dates { width: 96px; color: var(--muted); font-size: 12px; flex-shrink: 0; font-weight: 600; }
 .trow .tname { flex: 1; font-weight: 700; min-width: 140px; font-size: 14px; overflow-wrap: anywhere; }

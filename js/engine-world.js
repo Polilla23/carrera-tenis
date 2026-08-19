@@ -600,7 +600,27 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
   // Registro historico permanente (liviano): campeon y finalista con nombre "congelado"
   function archivePush(state, inst, runnerId){
     state.archive = state.archive || [];
+    // participacion del humano (con su resultado, para poder filtrar "mis torneos")
+    var my = null;
+    if(state.humanId != null){
+      var inMain = inst.entrants && inst.entrants.indexOf(state.humanId) >= 0;
+      var inQ = inst.qEntrants && inst.qEntrants.indexOf(state.humanId) >= 0;
+      if(inMain || inQ){
+        my = {q: !inMain};
+        var hh = state.players[state.humanId];
+        for(var ri = hh.results.length - 1; ri >= 0; ri--){
+          if(hh.results[ri].tid === inst.id){
+            my.rw = hh.results[ri].rw;
+            my.champ = !!hh.results[ri].champ;
+            my.pts = hh.results[ri].pts;
+            my.q = !!hh.results[ri].q;
+            break;
+          }
+        }
+      }
+    }
     state.archive.push({
+      my: my,
       y: TC.dateOf(inst.startDay).getUTCFullYear(),
       name: inst.name, cat: inst.cat, surf: inst.surf,
       region: inst.region || null,

@@ -301,6 +301,24 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
           state.players[q].ht = state.players[q].isHuman ? 183 : TC._rollHeight(rng3);
         }
       }
+      // compat: marcar en el archivo que torneos jugo el humano (partidas de antes de esta version)
+      if(state.archive && state.archive.length && state.archive[0].my === undefined && state.humanId != null){
+        var hres = {};
+        state.players[state.humanId].results.forEach(function(r){ if(r.tid) hres[r.tid] = r; });
+        var finIdx = {};
+        (state.finished || []).forEach(function(t){ finIdx[t.id] = t; });
+        state.archive.forEach(function(e){
+          var r = hres[e.instId];
+          if(r){ e.my = {rw: r.rw, champ: !!r.champ, pts: r.pts, q: !!r.q}; return; }
+          var t = finIdx[e.instId];
+          if(t && ((t.entrants && t.entrants.indexOf(state.humanId) >= 0) ||
+                   (t.qEntrants && t.qEntrants.indexOf(state.humanId) >= 0))){
+            e.my = {rw: null};
+          } else {
+            e.my = null;
+          }
+        });
+      }
       return state;
     } catch(e){ return null; }
   };
