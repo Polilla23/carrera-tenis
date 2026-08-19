@@ -282,6 +282,24 @@ table.rank td.num { color: var(--muted); width: 44px; font-weight: 800; font-fam
   text-transform: none; letter-spacing: 0;
 }
 
+/* banderitas y marca de zurdo */
+.flag { width: 16px; height: 12px; border-radius: 2px; vertical-align: -1px; margin-right: 5px; box-shadow: 0 0 0 1px rgba(255,255,255,.15); }
+.ztag {
+  display: inline-block; font-size: 9px; font-weight: 900; color: #14181d;
+  background: var(--warn); border-radius: 4px; padding: 1px 4px; vertical-align: 2px; margin-left: 4px;
+}
+
+/* tu fila del ranking, siempre a la vista */
+.me-sticky {
+  position: sticky; top: 74px; z-index: 6; cursor: pointer;
+  display: flex; align-items: center; gap: 8px;
+  background: linear-gradient(90deg, rgba(200,243,29,.14), rgba(13,19,25,.97));
+  border: 1px solid var(--accent); border-radius: 10px;
+  padding: 9px 14px; margin-bottom: 12px; font-weight: 700; font-size: 14px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.45);
+}
+.me-sticky .msr { font-family: Anton, 'Arial Narrow', Impact, sans-serif; font-size: 20px; color: var(--accent); letter-spacing: 1px; }
+
 .plink { cursor: pointer; }
 .plink:hover { text-decoration: underline; text-decoration-color: var(--muted); }
 .meplink { color: var(--accent); }
@@ -519,6 +537,8 @@ button, .chip, .tab, .trow, .plink, .tlink { touch-action: manipulation; }
 
   .agenda-leg { margin-left: 8px; font-size: 12px; }
   .legend-row { flex-wrap: wrap; }
+  .me-sticky { top: 6px; font-size: 12.5px; padding: 7px 10px; }
+  .me-sticky .msr { font-size: 17px; }
 
   canvas#rankchart { height: 130px; }
 }

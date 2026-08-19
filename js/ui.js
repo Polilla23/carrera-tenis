@@ -25,6 +25,31 @@ var UI = {};
   function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
   var SURF_LABEL = {clay:'Polvo', hard:'Dura', grass:'Hierba', indoor:'Indoor', all:'Neutral'};
+
+  // Codigos del juego -> ISO 3166 alpha-2 (para banderitas)
+  var FLAG_ISO = {
+    ARG:'ar', BRA:'br', CHI:'cl', URU:'uy', COL:'co', PER:'pe', ECU:'ec', BOL:'bo', PAR:'py', VEN:'ve',
+    MEX:'mx', USA:'us', CAN:'ca', DOM:'do', JAM:'jm', GUA:'gt',
+    AUS:'au', NZL:'nz',
+    ESP:'es', FRA:'fr', ITA:'it', GER:'de', SUI:'ch', AUT:'at', BEL:'be', HOL:'nl', NED:'nl', POR:'pt',
+    SWE:'se', NOR:'no', DEN:'dk', FIN:'fi', GBR:'gb', IRL:'ie', ISL:'is', LUX:'lu',
+    SRB:'rs', CRO:'hr', RUS:'ru', CZE:'cz', SLQ:'sk', SVK:'sk', POL:'pl', UCR:'ua', RUM:'ro', ROU:'ro',
+    BUL:'bg', HUN:'hu', GRE:'gr', LTU:'lt', LET:'lv', EST:'ee', GEO:'ge', BIE:'by', BIH:'ba', MDA:'md',
+    KAZ:'kz', UZB:'uz', JPN:'jp', CHN:'cn', KOR:'kr', IND:'in', TPE:'tw', THA:'th', INA:'id', HKG:'hk',
+    QAT:'qa', EAU:'ae', UAE:'ae', BRN:'bh', TUR:'tr', ISR:'il', CYP:'cy',
+    SUD:'za', RSA:'za', MAR:'ma', EGY:'eg', TUN:'tn', KEN:'ke', RWA:'rw', ANG:'ao', CIV:'ci'
+  };
+  function flagHtml(cc){
+    var iso = FLAG_ISO[cc];
+    if(!iso) return '';
+    return '<img class="flag" alt="" src="https://flagcdn.com/16x12/' + iso + '.png" ' +
+      'srcset="https://flagcdn.com/32x24/' + iso + '.png 2x" onerror="this.style.display=\'none\'">';
+  }
+  function ccHtml(cc){ return flagHtml(cc) + cc; }
+  // marca de zurdo (convencion tenistica: se marca al zurdo)
+  function handTag(p){
+    return p.hand === 'Z' ? ' <span class="ztag" title="Zurdo">Z</span>' : '';
+  }
   var SURF_COLOR = {clay:'var(--clay)', hard:'var(--hard)', grass:'var(--grass)', indoor:'var(--indoor)', all:'var(--muted)'};
 
   // punto de superficie con tooltip CSS (los title nativos se esconden al hacer click)
@@ -232,7 +257,7 @@ var UI = {};
     var ecolor = h.energy > 70 ? 'var(--accent2)' : (h.energy > 40 ? 'var(--warn)' : 'var(--danger)');
     return '<div class="topbar">' +
       '<div class="avatar">' + esc(initials(h.name).toUpperCase()) + '</div>' +
-      '<div class="who"><div class="nm">' + esc(h.name) + '</div><div class="cc">' + h.country + ' · ' + h.age + ' años · <span class="stars">' + starsOf(h) + '</span></div></div>' +
+      '<div class="who"><div class="nm">' + esc(h.name) + (h.hand === 'Z' ? ' <span class="ztag" title="Zurdo">Z</span>' : '') + '</div><div class="cc">' + ccHtml(h.country) + ' · ' + h.age + ' años · <span class="stars">' + starsOf(h) + '</span></div></div>' +
       '<div class="hero-rank"><div class="v">' + (h.rank === 9999 ? 'NR' : '#' + h.rank) + '</div><div class="l">Ranking</div></div>' +
       '<div class="stat"><div class="v">' + h.pts + '</div><div class="l">Puntos</div></div>' +
       '<div class="stat"><div class="v">' + fmtForm(h.form) + '</div><div class="l">Forma</div></div>' +
@@ -955,8 +980,8 @@ var UI = {};
       var p = S.players[ids[i]];
       html += '<tr' + (ids[i] === S.humanId ? ' class="me"' : '') + '>' +
         '<td class="num">' + (i < numSeeds ? (i + 1) : '—') + '</td>' +
-        '<td>' + playerName(p.id, false, true) + '</td>' +
-        '<td>' + p.country + '</td><td>' + p.age + '</td>' +
+        '<td>' + playerName(p.id, false, true) + handTag(p) + '</td>' +
+        '<td>' + ccHtml(p.country) + '</td><td>' + p.age + '</td>' +
         '<td style="text-align:right">' + (p.rank === 9999 ? 'NR' : '#' + p.rank) + '</td></tr>';
     }
     return html + '</table>';
@@ -1298,26 +1323,34 @@ var UI = {};
     var h = human();
     var ranked = S.players.filter(function(p){ return p.rank !== 9999; })
                           .sort(function(a,b){ return a.rank - b.rank; });
-    var html = '<table class="rank"><tr><th>#</th><th>Jugador</th><th>Pais</th><th>Edad</th><th style="text-align:right">Puntos</th></tr>';
-    var shown = {};
-    function row(p){
-      if(shown[p.id]) return '';
-      shown[p.id] = 1;
+
+    // tu posicion, siempre a la vista mientras scrolleas
+    var html = '';
+    if(h.rank !== 9999){
+      var mvh = '';
+      if(h.prevRank && h.prevRank !== 9999 && h.prevRank !== h.rank){
+        var dh = h.prevRank - h.rank;
+        mvh = dh > 0 ? '<span class="mv up">▲' + dh + '</span>' : '<span class="mv dn">▼' + (-dh) + '</span>';
+      }
+      html += '<div class="me-sticky" id="me-sticky" title="Ir a mi fila">' +
+        '<span class="msr">#' + h.rank + '</span> ' + esc(h.name) + mvh +
+        '<span class="spacer"></span>' + ccHtml(h.country) + ' · <b>' + h.pts + ' pts</b></div>';
+    } else {
+      html += '<div class="me-sticky" style="color:var(--muted)">Todavia no tenes ranking — suma puntos en torneos ITF</div>';
+    }
+
+    html += '<h3 class="section">Ranking mundial (' + ranked.length + ' jugadores con puntos)</h3>';
+    html += '<table class="rank"><tr><th>#</th><th>Jugador</th><th>Pais</th><th>Edad</th><th style="text-align:right">Puntos</th></tr>';
+    for(var i = 0; i < ranked.length; i++){
+      var p = ranked[i];
       var mv = '';
       if(p.prevRank !== 9999 && p.prevRank && p.prevRank !== p.rank){
         var d = p.prevRank - p.rank;
         mv = d > 0 ? '<span class="mv up">▲' + d + '</span>' : '<span class="mv dn">▼' + (-d) + '</span>';
       }
-      return '<tr' + (p.id === S.humanId ? ' class="me"' : '') + '><td class="num">' + p.rank + '</td>' +
-        '<td>' + playerName(p.id, false, true) + mv + '</td><td>' + p.country + '</td><td>' + p.age + '</td>' +
+      html += '<tr' + (p.id === S.humanId ? ' class="me" id="me-row"' : '') + '><td class="num">' + p.rank + '</td>' +
+        '<td>' + playerName(p.id, false, true) + handTag(p) + mv + '</td><td>' + ccHtml(p.country) + '</td><td>' + p.age + '</td>' +
         '<td style="text-align:right">' + p.pts + '</td></tr>';
-    }
-    for(var i = 0; i < Math.min(100, ranked.length); i++) html += row(ranked[i]);
-    if(h.rank !== 9999 && h.rank > 104){
-      html += '<tr class="sep-row"><td colspan="5">···</td></tr>';
-      for(i = Math.max(0, h.rank - 6); i < Math.min(ranked.length, h.rank + 5); i++) html += row(ranked[i]);
-    } else if(h.rank === 9999){
-      html += '<tr class="sep-row"><td colspan="5">Todavia no tenes ranking — suma puntos en torneos ITF</td></tr>';
     }
     html += '</table>';
     return html;
@@ -1496,6 +1529,11 @@ var UI = {};
       var ar = t.closest('.attr-row');
       if(ar && ar.dataset.attr){ S.trainFocus = ar.dataset.attr; S.action = 'train'; render(); return; }
       if(t.id === 'btn-play2'){ openMatchModal(); return; }
+      if(t.closest && t.closest('#me-sticky')){
+        var mr = document.getElementById('me-row');
+        if(mr) mr.scrollIntoView({behavior:'smooth', block:'center'});
+        return;
+      }
       if(t.id === 'btn-recap'){ openRecapModal(); return; }
       if(t.id === 'btn-retire'){
         if(confirm('Seguro que queres retirarte? Fin de la carrera.')) retire();
@@ -1616,7 +1654,7 @@ var UI = {};
     openModal(
       '<div>' +
         '<h2>' + esc(p.name) + (id === S.humanId ? ' <span style="color:var(--accent);font-size:13px">(vos)</span>' : '') + '</h2>' +
-        '<div class="modal-note" style="margin-top:2px">' + p.country + ' · ' + p.age + ' años · ' + (p.ht ? (p.ht / 100).toFixed(2) + 'm · ' : '') + (p.hand === 'Z' ? 'Zurdo' : 'Diestro') + ' · Prefiere ' + surfHtml(p.pref) +
+        '<div class="modal-note" style="margin-top:2px">' + ccHtml(p.country) + ' · ' + p.age + ' años · ' + (p.ht ? (p.ht / 100).toFixed(2) + 'm · ' : '') + (p.hand === 'Z' ? 'Zurdo' : 'Diestro') + ' · Prefiere ' + surfHtml(p.pref) +
           ' · Nivel <span class="stars">' + starsOf(p) + '</span>' +
           (!p.isHuman && p.pot != null && p.age <= 23 ? ' · Potencial <span class="stars">' + starsVal(p.pot) + '</span>' : '') +
           (p.injury ? ' · <span style="color:var(--danger)">Lesionado: ' + esc(p.injury.name) + ' (' + p.injury.days + 'd)</span>' : '') + '</div>' +
@@ -1682,8 +1720,9 @@ var UI = {};
             '<div class="meta">' + (h.rank === 9999 ? 'NR' : '#' + h.rank) + ' · Energia ' + Math.round(h.energy) + '% · ' + fmtForm(h.form) + '</div>' +
             '<div class="meta">Nivel <span class="stars">' + starsOf(h) + '</span></div></div>' +
           '<div class="f2f-vs">VS</div>' +
-          '<div class="f2f-p"><div class="nm plink" data-player="' + opp.id + '" title="Ver ficha">' + esc(opp.name) + '</div>' +
-            '<div class="meta">' + (opp.rank === 9999 ? 'NR' : '#' + opp.rank) + ' · ' + opp.country + ' · ' + opp.age + ' años · Energia ' + Math.round(opp.energy) + '% · ' + fmtForm(opp.form) + '</div>' +
+          '<div class="f2f-p"><div class="nm plink" data-player="' + opp.id + '" title="Ver ficha">' + esc(opp.name) + handTag(opp) + '</div>' +
+            '<div class="meta">' + (opp.rank === 9999 ? 'NR' : '#' + opp.rank) + ' · ' + ccHtml(opp.country) + ' · ' + opp.age + ' años · ' + (opp.hand === 'Z' ? 'Zurdo' : 'Diestro') + '</div>' +
+            '<div class="meta">Energia ' + Math.round(opp.energy) + '% · ' + fmtForm(opp.form) + '</div>' +
             '<div class="meta">Nivel <span class="stars">' + starsOf(opp) + '</span> · Prefiere ' + surfHtml(opp.pref) + '</div>' +
             (S.h2h && S.h2h[opp.id] ? '<div class="meta">H2H: ' + h2hLabel(S.h2h[opp.id]) + '</div>' : '') + '</div>' +
         '</div>' +
