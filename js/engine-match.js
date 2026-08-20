@@ -42,8 +42,8 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     var lefty = p.hand === 'Z' ? 0.15 : 0; // el saque zurdo incomoda
     var hM = p.ht ? (p.ht - 185) / 25 : 0; // altura: mas saque, algo menos de resto y movilidad
     // el saque alto pega mas en superficies rapidas; el polvo castiga la falta de movilidad
-    var hSrv = hM * (surf === 'grass' || surf === 'indoor' ? 0.55 : (surf === 'hard' ? 0.45 : 0.22));
-    var hMov = hM * (surf === 'clay' ? 0.22 : 0.08);
+    var hSrv = hM * (surf === 'grass' || surf === 'indoor' ? 0.78 : (surf === 'hard' ? 0.62 : 0.30));
+    var hMov = hM * (surf === 'clay' ? 0.09 : 0.033);
     return {
       S: (p.srv*0.6 + p.pow*0.4 + b + day + lefty + hSrv) * e * f,  // saque
       R: (p.ret*0.55 + p.spd*0.2 + p.con*0.25 + b*0.5 + day - hM*0.18) * e * f, // resto
@@ -53,12 +53,14 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
   }
 
   // Prob. de que el sacador gane el punto
+  // El saque pesa, pero los puntos se ganan mayormente en el peloteo:
+  // el juego de fondo (G) tiene un coeficiente comparable al saque/resto
   function pServe(surf, sv, rt, setsDone){
     var cs = 1 - setsDone * sv.fatigueRate;
     var cr = 1 - setsDone * rt.fatigueRate;
     var p = BASE_P[surf]
-          + 0.026 * (sv.S * cs - rt.R * cr)
-          + 0.010 * (sv.G * cs - rt.G * cr);
+          + 0.019 * (sv.S * cs - rt.R * cr)
+          + 0.024 * (sv.G * cs - rt.G * cr);
     return Math.max(0.30, Math.min(0.92, p));
   }
 

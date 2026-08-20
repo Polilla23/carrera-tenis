@@ -521,7 +521,7 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     var ageF;
     if(p.isHuman){
       // campana: de pibe absorbes poco (te falta cabeza), pico competitivo 23-27, despues ya lo viste todo
-      ageF = p.age <= 19 ? 0.7 : (p.age <= 22 ? 1.0 : (p.age <= 27 ? 1.25 : (p.age <= 29 ? 0.6 : 0.15)));
+      ageF = p.age <= 19 ? 0.7 : (p.age <= 22 ? 1.05 : (p.age <= 27 ? 1.45 : (p.age <= 29 ? 0.8 : 0.2)));
     } else {
       ageF = p.age <= 21 ? 1.0 : (p.age <= 25 ? 0.6 : (p.age <= 28 ? 0.3 : 0.12));
     }
@@ -1232,8 +1232,8 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
       // entrenar cansa de verdad: no se puede entrenar infinito sin descansar
       p.energy = Math.max(0, p.energy - 2.2);
       // curva de aprendizaje: de joven absorbes todo, de grande casi nada
-      var ageF = p.age <= 19 ? 3.4 : (p.age <= 21 ? 2.6 : (p.age <= 24 ? 1.9 : (p.age <= 27 ? 0.9 : (p.age <= 30 ? 0.45 : (p.age <= 33 ? 0.2 : 0.08)))));
-      var curve = Math.max(0.1, (10.2 - p[focus]) / 6);
+      var ageF = p.age <= 19 ? 3.4 : (p.age <= 21 ? 2.6 : (p.age <= 24 ? 2.0 : (p.age <= 27 ? 1.15 : (p.age <= 30 ? 0.6 : (p.age <= 33 ? 0.25 : 0.08)))));
+      var curve = Math.max(0.12, (10.6 - p[focus]) / 6);
       // cuanto mas fundido, menos rinde el entrenamiento
       var eff = 0.4 + 0.6 * Math.min(1, p.energy / 55);
       // sin ritmo de partidos oficiales, el entrenamiento rinde cada vez menos
