@@ -282,6 +282,12 @@ table.rank td.num { color: var(--muted); width: 44px; font-weight: 800; font-fam
   text-transform: none; letter-spacing: 0;
 }
 
+/* comparacion de stats contra el rival */
+.cmp { font-size: 10px; font-weight: 800; width: 36px; display: inline-block; text-align: right; flex-shrink: 0; }
+.cmp.worse { color: var(--danger); }
+.cmp.better { color: var(--accent2); }
+.cmp.eq { color: var(--muted); }
+
 /* banderitas y marca de zurdo */
 .flag { width: 16px; height: 12px; border-radius: 2px; vertical-align: -1px; margin-right: 5px; box-shadow: 0 0 0 1px rgba(255,255,255,.15); }
 .ztag {

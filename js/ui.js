@@ -3,11 +3,15 @@ var UI = {};
 (function(){
   var S = null;              // estado del juego
   var tab = 'calendar';
-  var calFilter = 'auto';
-  var calSub = 'all';        // sub-filtro de categoria (250/500/M1000/GS o CH50..CH175 o ITF15/25)
+  var calMode = 'auto';      // 'auto' (para mi nivel) | 'all'
+  var calGroups = {};        // grupos activos (multi): {atp, ch, itf}
+  var calSubs = {};          // sub-categorias activas (multi): {CH75:1, ITF15:1, ...}
+  var calRegOnly = false;    // solo torneos donde estoy inscripto
   var calMonth = 'all';      // filtro de mes del calendario
   var calSurf = 'all';       // filtro de superficie del calendario
   var calRegion = 'all';     // filtro de region del calendario
+  var archiveGroups = {};    // grupos activos del archivo (multi)
+  var archiveSubs = {};      // sub-categorias activas del archivo (multi)
   var archiveRegion = 'all'; // filtro de region del archivo
   var archivePlayed = 'all'; // 'all' | 'mine' (solo torneos que jugue)
   var detailId = null;       // torneo abierto en el visor de detalle (def del calendario)
@@ -15,8 +19,6 @@ var UI = {};
   var archiveYear = null;    // año seleccionado en el archivo
   var archiveMonth = 'all';  // mes (0-11) o 'all'
   var archiveSurf = 'all';   // superficie o 'all'
-  var archiveCat = 'all';    // grupo: 'all' | 'atp' | 'ch' | 'itf'
-  var archiveSub = 'all';    // sub-categoria dentro del grupo
   var chartRange = '1y';     // rango del grafico de ranking: 3m | 1y | all
   var weekReport = null;     // cambios de atributos desde el ultimo avance
   var app;
@@ -437,16 +439,12 @@ var UI = {};
         return '<button class="chip' + (archiveSurf === s ? ' on' : '') + '" data-asurf="' + s + '">' + SURF_LABEL[s] + '</button>';
       }).join('') +
       '<span style="width:14px"></span>' +
-      [['all','Toda categoria'],['atp','ATP'],['ch','Challenger'],['itf','ITF']].map(function(c){
-        return '<button class="chip' + (archiveCat === c[0] ? ' on' : '') + '" data-acat="' + c[0] + '">' + c[1] + '</button>';
+      '<button class="chip' + (!anyKeys(archiveGroups) ? ' on' : '') + '" data-acat="all">Toda categoria</button>' +
+      [['atp','ATP'],['ch','Challenger'],['itf','ITF']].map(function(c){
+        return '<button class="chip' + (archiveGroups[c[0]] ? ' on' : '') + '" data-agroup="' + c[0] + '" title="Se puede combinar con otros grupos">' + c[1] + '</button>';
       }).join('') +
-      (SUBCATS[archiveCat] ?
-        '<span style="width:10px"></span>' +
-        '<button class="chip' + (archiveSub === 'all' ? ' on' : '') + '" data-asub="all">Todos</button>' +
-        SUBCATS[archiveCat].map(function(sc){
-          return '<button class="chip' + (archiveSub === sc[0] ? ' on' : '') + '" data-asub="' + sc[0] + '">' + sc[1] + '</button>';
-        }).join('') : '') +
       '</div>';
+    html += subChipsHtml(archiveGroups, archiveSubs, 'asub');
     html += '<div class="cal-filters">' +
       '<button class="chip' + (archiveRegion === 'all' ? ' on' : '') + '" data-aregion="all">Todas las regiones</button>' +
       Object.keys(TC.REGION_LABEL).map(function(r){
@@ -454,11 +452,8 @@ var UI = {};
       }).join('') + '</div>';
 
     function catMatches(cat){
-      if(archiveCat === 'all') return true;
-      if(archiveCat === 'atp') return ['GS','M1000','500','250','FINALS'].indexOf(cat) >= 0 && subMatches(cat, archiveSub);
-      if(archiveCat === 'ch') return cat.indexOf('CH') === 0 && subMatches(cat, archiveSub);
-      if(archiveCat === 'itf') return cat.indexOf('ITF') === 0 && subMatches(cat, archiveSub);
-      return true;
+      if(!anyKeys(archiveGroups)) return true;
+      return groupsMatch(cat, archiveGroups, archiveSubs);
     }
 
     var entries = arc.filter(function(e){
@@ -533,17 +528,41 @@ var UI = {};
     ch:  [['CH50','50'],['CH75','75'],['CH100','100'],['CH125','125'],['CH175','175']],
     itf: [['ITF15','M15'],['ITF25','M25']]
   };
-  function subMatches(cat, sub){
-    if(sub === 'all') return true;
-    if(sub === 'M1000') return cat === 'M1000' || cat === 'FINALS';
-    return cat === sub;
+  function catGroup(cat){
+    if(cat.indexOf('CH') === 0) return 'ch';
+    if(cat.indexOf('ITF') === 0) return 'itf';
+    return 'atp';
+  }
+  function anyKeys(o){ for(var k in o) if(o[k]) return true; return false; }
+
+  // filtro generico multi-seleccion: grupos + sub-categorias
+  function groupsMatch(cat, groups, subs){
+    if(!groups[catGroup(cat)]) return false;
+    if(anyKeys(subs)){
+      if(subs[cat]) return true;
+      if(subs['M1000'] && cat === 'FINALS') return true;
+      return false;
+    }
+    return true;
+  }
+
+  // fila de sub-chips para los grupos seleccionados (multi-toggle)
+  function subChipsHtml(groups, subs, attr){
+    if(!anyKeys(groups)) return '';
+    var html = '<div class="cal-filters">' +
+      '<button class="chip' + (!anyKeys(subs) ? ' on' : '') + '" data-' + attr + '="all">Todas las subcategorias</button>';
+    ['atp','ch','itf'].forEach(function(g){
+      if(!groups[g]) return;
+      SUBCATS[g].forEach(function(sc){
+        html += '<button class="chip' + (subs[sc[0]] ? ' on' : '') + '" data-' + attr + '="' + sc[0] + '">' + sc[1] + '</button>';
+      });
+    });
+    return html + '</div>';
   }
 
   function catVisible(cat){
-    if(calFilter === 'all') return true;
-    if(calFilter === 'atp') return ['GS','M1000','500','250','FINALS'].indexOf(cat) >= 0 && subMatches(cat, calSub);
-    if(calFilter === 'ch') return cat.indexOf('CH') === 0 && subMatches(cat, calSub);
-    if(calFilter === 'itf') return cat.indexOf('ITF') === 0 && subMatches(cat, calSub);
+    if(anyKeys(calGroups)) return groupsMatch(cat, calGroups, calSubs);
+    if(calMode === 'all') return true;
     // auto: segun tu nivel
     var r = human().rank;
     if(r <= 120) return ['GS','M1000','500','250','FINALS','CH175'].indexOf(cat) >= 0;
@@ -578,18 +597,18 @@ var UI = {};
   }
 
   function renderCalendar(){
-    var filters = [['auto','Para mi nivel'],['all','Todos'],['atp','ATP'],['ch','Challenger'],['itf','ITF']];
-    var html = '<div class="cal-filters">' + filters.map(function(f){
-      return '<button class="chip' + (calFilter===f[0]?' on':'') + '" data-filter="' + f[0] + '">' + f[1] + '</button>';
-    }).join('') +
-    // sub-filtro segun el grupo elegido (ATP -> 250/500/1000/GS, Challenger -> 50..175, ITF -> M15/M25)
-    (SUBCATS[calFilter] ?
+    var noGroups = !anyKeys(calGroups);
+    var html = '<div class="cal-filters">' +
+      '<button class="chip' + (noGroups && calMode === 'auto' && !calRegOnly ? ' on' : '') + '" data-filter="auto">Para mi nivel</button>' +
+      '<button class="chip' + (noGroups && calMode === 'all' && !calRegOnly ? ' on' : '') + '" data-filter="all">Todos</button>' +
       '<span style="width:10px"></span>' +
-      '<button class="chip' + (calSub === 'all' ? ' on' : '') + '" data-csub="all">Todos</button>' +
-      SUBCATS[calFilter].map(function(sc){
-        return '<button class="chip' + (calSub === sc[0] ? ' on' : '') + '" data-csub="' + sc[0] + '">' + sc[1] + '</button>';
-      }).join('') : '') +
+      [['atp','ATP'],['ch','Challenger'],['itf','ITF']].map(function(g){
+        return '<button class="chip' + (calGroups[g[0]] ? ' on' : '') + '" data-fgroup="' + g[0] + '" title="Se puede combinar con otros grupos">' + g[1] + '</button>';
+      }).join('') +
+      '<span style="width:10px"></span>' +
+      '<button class="chip' + (calRegOnly ? ' on' : '') + '" data-regonly="1" title="Solo los torneos donde estas inscripto">📝 Mis inscripciones</button>' +
     '</div>';
+    html += subChipsHtml(calGroups, calSubs, 'csub');
 
     // filtros de mes y superficie
     html += '<div class="cal-filters">' +
@@ -629,7 +648,9 @@ var UI = {};
     for(var i = 0; i < S.schedule.length; i++){
       var d = S.schedule[i];
       if(d.startDay + d.dur < S.day - 7) continue;         // pasado lejano no
-      if(!catVisible(d.cat) && S.registrations.indexOf(d.id) < 0) continue;
+      var isReg0 = S.registrations.indexOf(d.id) >= 0 || (d.instId && d.instId === human().curT);
+      if(calRegOnly && !isReg0) continue;
+      if(!calRegOnly && !catVisible(d.cat) && !isReg0) continue;
       var m = TC.dateOf(d.startDay).getUTCMonth();
       if(calMonth !== 'all' && m !== calMonth) continue;
       if(calSurf !== 'all' && d.surf !== calSurf) continue;
@@ -1499,8 +1520,18 @@ var UI = {};
     var panel = $('panel');
     panel.onclick = function(e){
       var t = e.target;
-      if(t.dataset.filter){ calFilter = t.dataset.filter; calSub = 'all'; render(); return; }
-      if(t.dataset.csub){ calSub = t.dataset.csub; render(); return; }
+      if(t.dataset.filter){ calMode = t.dataset.filter; calGroups = {}; calSubs = {}; calRegOnly = false; render(); return; }
+      if(t.dataset.fgroup){
+        calGroups[t.dataset.fgroup] = !calGroups[t.dataset.fgroup];
+        calSubs = {};
+        render(); return;
+      }
+      if(t.dataset.csub){
+        if(t.dataset.csub === 'all') calSubs = {};
+        else calSubs[t.dataset.csub] = !calSubs[t.dataset.csub];
+        render(); return;
+      }
+      if(t.dataset.regonly){ calRegOnly = !calRegOnly; render(); return; }
       if(t.dataset.cmonth != null){ calMonth = t.dataset.cmonth === 'all' ? 'all' : parseInt(t.dataset.cmonth, 10); render(); return; }
       if(t.dataset.csurf){ calSurf = t.dataset.csurf; render(); return; }
       if(t.dataset.cregion){ calRegion = t.dataset.cregion; render(); return; }
@@ -1510,8 +1541,17 @@ var UI = {};
       if(t.dataset.ayear){ archiveYear = parseInt(t.dataset.ayear, 10); render(); return; }
       if(t.dataset.amonth != null){ archiveMonth = t.dataset.amonth === 'all' ? 'all' : parseInt(t.dataset.amonth, 10); render(); return; }
       if(t.dataset.asurf){ archiveSurf = t.dataset.asurf; render(); return; }
-      if(t.dataset.acat){ archiveCat = t.dataset.acat; archiveSub = 'all'; render(); return; }
-      if(t.dataset.asub){ archiveSub = t.dataset.asub; render(); return; }
+      if(t.dataset.acat){ archiveGroups = {}; archiveSubs = {}; render(); return; }
+      if(t.dataset.agroup){
+        archiveGroups[t.dataset.agroup] = !archiveGroups[t.dataset.agroup];
+        archiveSubs = {};
+        render(); return;
+      }
+      if(t.dataset.asub){
+        if(t.dataset.asub === 'all') archiveSubs = {};
+        else archiveSubs[t.dataset.asub] = !archiveSubs[t.dataset.asub];
+        render(); return;
+      }
       if(t.id === 'btn-back-cal'){ detailId = null; render(); return; }
       if(t.id === 'btn-back-arch'){ archInstId = null; render(); return; }
       var al = t.closest('[data-adetail]');
@@ -1630,9 +1670,19 @@ var UI = {};
   function closeModal(){ $('modal-overlay').classList.add('hidden'); }
 
   // ================= FICHA DE JUGADOR =================
+  // Comparacion de un atributo del rival contra el tuyo (rojo: te supera, verde: sos mejor)
+  function cmpChip(diff){
+    var d = Math.round(diff * 10) / 10;
+    if(Math.abs(d) < 0.15) return '<span class="cmp eq">=</span>';
+    if(d > 0) return '<span class="cmp worse">+' + d.toFixed(1) + '</span>';
+    return '<span class="cmp better">' + d.toFixed(1) + '</span>';
+  }
+
   function openPlayerModal(id){
     var p = S.players[id];
     if(!p) return;
+    var hMe = human();
+    var isRival = id !== S.humanId;
     var mv = '';
     if(p.prevRank !== 9999 && p.prevRank && p.rank !== 9999 && p.prevRank !== p.rank){
       var d = p.prevRank - p.rank;
@@ -1644,7 +1694,9 @@ var UI = {};
       attrs += '<div class="attr-row"><div class="an">' + TC.ATTR_LABEL[a] + '</div>' +
         '<div class="abar"><div style="width:' + (p[a] * 10) + '%"></div></div>' +
         attrDelta(p, a) +
-        '<div class="av">' + p[a].toFixed(1) + '</div></div>';
+        '<div class="av">' + p[a].toFixed(1) + '</div>' +
+        (isRival ? cmpChip(p[a] - hMe[a]) : '') +
+      '</div>';
     }
     var recent = (p.results || []).slice(-6).reverse();
     var resHtml = '';
@@ -1660,12 +1712,14 @@ var UI = {};
           (p.injury ? ' · <span style="color:var(--danger)">Lesionado: ' + esc(p.injury.name) + ' (' + p.injury.days + 'd)</span>' : '') + '</div>' +
         '<div class="pstats" style="margin:12px 0">' +
           stat((p.rank === 9999 ? 'NR' : '#' + p.rank) + mv, 'Ranking') +
+          stat(TC.overall(p).toFixed(2) + (isRival ? ' ' + cmpChip(TC.overall(p) - TC.overall(hMe)) : ''), isRival ? 'Nivel (vos: ' + TC.overall(hMe).toFixed(2) + ')' : 'Nivel general') +
           stat(p.pts, 'Puntos') +
           stat(p.wins + '-' + p.losses, 'Record') +
           stat(p.titles || 0, 'Titulos') +
           stat(fmtForm(p.form), 'Forma') +
           stat(Math.round(p.energy) + '%', 'Energia') +
         '</div>' +
+        (isRival ? '<div class="modal-note" style="text-align:left;font-size:11px">Comparado con tus stats: <span class="cmp worse">+X</span> te supera · <span class="cmp better">−X</span> sos mejor</div>' : '') +
         '<div class="attr-grid" style="grid-template-columns:1fr 1fr">' + attrs + '</div>' +
         (resHtml ? '<h3 class="section">Ultimos resultados</h3>' + resHtml : '') +
         '<div class="modal-actions"><button class="btn primary" id="pm-close">' +
