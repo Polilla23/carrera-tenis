@@ -118,13 +118,14 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     FINALS: {draw:8,   pts:null,                             minRank:1,   maxRank:8,    color:'#4b3b8f', label:'ATP Finals'}
   };
 
-  // Fase previa (qualy) de los torneos ATP: q = plazas, cuadro de q*4 a 2 rondas,
-  // qMax = peor ranking aceptado en qualy, pts = puntos por caer en QR1/QR2
+  // Fase previa (qualy): q = plazas, rounds = rondas (cuadro de q * 2^rounds),
+  // qMax = peor ranking aceptado, pts = puntos por caer en cada ronda
+  // Los Grand Slams tienen 3 fases de qualy (128 -> 16), el resto 2
   TC.QUALI = {
-    GS:    {q:16, qMax:260, pts:[8, 16]},
-    M1000: {q:8,  qMax:200, pts:[5, 10]},
-    '500': {q:4,  qMax:180, pts:[3, 6]},
-    '250': {q:4,  qMax:300, pts:[2, 4]}
+    GS:    {q:16, qMax:360, rounds:3, pts:[8, 16, 25]},
+    M1000: {q:8,  qMax:200, rounds:2, pts:[5, 10]},
+    '500': {q:4,  qMax:180, rounds:2, pts:[3, 6]},
+    '250': {q:4,  qMax:300, rounds:2, pts:[2, 4]}
   };
 
   // Superficie tipica de la gira segun el mes (para challengers/futures procedurales)

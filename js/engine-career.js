@@ -5,19 +5,20 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
   var SAVE_KEY = 'tenniscareer_save_v1';
 
   // Presupuesto total de puntos de atributos al crear el personaje
-  TC.ATTR_BUDGET = 53;
+  // (arrancas al nivel de un juvenil rank ~500-600: el crecimiento viene despues)
+  TC.ATTR_BUDGET = 48;
   TC.ATTR_MIN = 3.0;
   TC.ATTR_MAX = 6.5;
 
   TC.ARCHETYPES = {
     sacador:   {label:'Sacador',      desc:'Saque y potencia. Letal en pistas rapidas.',
-                attrs:{fh:5.8, bh:4.7, vol:5.6, dro:4.8, spd:4.7, sta:4.8, srv:6.5, pow:6.3, ret:4.8, con:5.0}},
+                attrs:{fh:5.3, bh:4.2, vol:5.1, dro:4.3, spd:4.2, sta:4.3, srv:6.0, pow:5.8, ret:4.3, con:4.5}},
     rallista:  {label:'Peloteador',   desc:'Solido de fondo, consistente. Clasico de polvo.',
-                attrs:{fh:6.0, bh:5.8, vol:4.4, dro:5.0, spd:5.2, sta:5.7, srv:4.8, pow:4.8, ret:5.2, con:6.1}},
+                attrs:{fh:5.5, bh:5.3, vol:3.9, dro:4.5, spd:4.7, sta:5.2, srv:4.3, pow:4.3, ret:4.7, con:5.6}},
     contra:    {label:'Contraatacador', desc:'Velocidad, resto y aguante. Devuelve todo.',
-                attrs:{fh:5.2, bh:5.3, vol:4.6, dro:4.8, spd:6.2, sta:6.2, srv:4.6, pow:4.6, ret:6.1, con:5.4}},
+                attrs:{fh:4.7, bh:4.8, vol:4.1, dro:4.3, spd:5.7, sta:5.7, srv:4.1, pow:4.1, ret:5.6, con:4.9}},
     completo:  {label:'Completo',     desc:'Sin puntos flacos ni fuertes. Adaptable.',
-                attrs:{fh:5.3, bh:5.3, vol:5.3, dro:5.3, spd:5.3, sta:5.3, srv:5.3, pow:5.3, ret:5.3, con:5.3}}
+                attrs:{fh:4.8, bh:4.8, vol:4.8, dro:4.8, spd:4.8, sta:4.8, srv:4.8, pow:4.8, ret:4.8, con:4.8}}
   };
 
   // Crea el estado completo de una nueva carrera
@@ -271,7 +272,7 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
       inst: inst,
       round: pm.round,
       quali: !!pm.quali,
-      qualified: !!pm.quali && pm.round === 1 && won,
+      qualified: !!pm.quali && won && pm.round === (((TC.QUALI[inst.cat] || {}).rounds || 2) - 1),
       injury: injuryMsg,
       duration: m.result.duration,
       energyAfter: h.energy,

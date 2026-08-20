@@ -1766,7 +1766,7 @@ var UI = {};
         (pimg ? '<img class="cat-logo big" src="' + pimg + '" alt="">' : '') +
         '<h2>' + esc(t.name) + '</h2>' +
         '<div class="tourinfo"><span class="badge" style="background:' + cat.color + '">' + cat.label + '</span> ' +
-          (pm.quali ? 'QUALY — ronda ' + (pm.round + 1) + ' de 2' :
+          (pm.quali ? 'QUALY — ronda ' + (pm.round + 1) + ' de ' + ((TC.QUALI[t.cat] && TC.QUALI[t.cat].rounds) || 2) :
             (t.isFinals ? (pm.round <= 2 ? 'Round Robin' : pm.round === 3 ? 'Semifinal' : 'FINAL') : TC.roundLabel(t, pm.round))) +
           ' · ' + SURF_LABEL[t.surf] + (t.bestOf === 5 && !pm.quali ? ' · Mejor de 5' : '') + '</div>' +
         '<div class="face2face">' +

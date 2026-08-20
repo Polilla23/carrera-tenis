@@ -378,17 +378,20 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
         qpool.push(qp);
       }
       qpool.sort(function(a, b){ return a.rank - b.rank; });
-      var qslots = qc.q * 4 - (humanQuali ? 1 : 0);
+      var qRounds = qc.rounds || 2;
+      var qDraw = qc.q * Math.pow(2, qRounds);
+      var qslots = qDraw - (humanQuali ? 1 : 0);
       qpool = qpool.slice(0, qslots);
       var qids = qpool.map(function(p2){ return p2.id; });
       if(humanQuali) qids.push(state.humanId);
       qids.sort(function(a, b){ return state.players[a].rank - state.players[b].rank; });
       if(qids.length >= 2){
         inst.qEntrants = qids.slice();
-        inst.qBracket = [TC.makeDraw(qids, qc.q * 4, rng)];
+        inst.qBracket = [TC.makeDraw(qids, qDraw, rng)];
         inst.qResults = [];
         inst.qRound = 0;
-        inst.qDays = [def.startDay - 2, def.startDay - 1];
+        inst.qDays = [];
+        for(var qd = 0; qd < qRounds; qd++) inst.qDays.push(def.startDay - qRounds + qd);
         inst.qualifiers = [];
         inst.mainBuilt = false;
         inst.directs = entrants.slice();
@@ -515,8 +518,14 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
 
   // Experiencia de partido: bumps a atributos aleatorios; devuelve la lista de mejoras
   function grantMatchXp(p, cat, isWinner, rng){
-    var ageF = p.age <= 21 ? 1.0 : (p.age <= 25 ? 0.6 : (p.age <= 28 ? 0.3 : 0.12));
-    var base = 0.012 * (CAT_XP[cat] || 1) * ageF;
+    var ageF;
+    if(p.isHuman){
+      // campana: de pibe absorbes poco (te falta cabeza), pico competitivo 23-27, despues ya lo viste todo
+      ageF = p.age <= 19 ? 0.7 : (p.age <= 22 ? 1.0 : (p.age <= 27 ? 1.25 : (p.age <= 29 ? 0.6 : 0.15)));
+    } else {
+      ageF = p.age <= 21 ? 1.0 : (p.age <= 25 ? 0.6 : (p.age <= 28 ? 0.3 : 0.12));
+    }
+    var base = (p.isHuman ? 0.02 : 0.012) * (CAT_XP[cat] || 1) * ageF;
     // la IA que ya toco su techo casi no crece mas por partidos (el humano no tiene techo)
     if(!p.isHuman && p.pot != null && TC.overall(p) >= p.pot) base *= 0.15;
     var n = isWinner ? 2 : 1;
@@ -803,7 +812,8 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
       if(loser != null) awardQuali(state, loser, inst, qr, rec);
     }
     inst.qRound = qr + 1;
-    if(qr >= 1){
+    var qRounds = (TC.QUALI[inst.cat] && TC.QUALI[inst.cat].rounds) || 2;
+    if(qr >= qRounds - 1){
       // clasificados al cuadro principal
       inst.qualifiers = winners.filter(function(w){ return w != null; });
       if(inst.qualifiers.indexOf(state.humanId) >= 0){
@@ -1026,7 +1036,7 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     // Arrancan torneos de hoy (los ATP con qualy abren 2 dias antes del cuadro principal)
     for(var i = 0; i < state.schedule.length; i++){
       var def = state.schedule[i];
-      var startEff = TC.QUALI[def.cat] ? def.startDay - 2 : def.startDay;
+      var startEff = TC.QUALI[def.cat] ? def.startDay - (TC.QUALI[def.cat].rounds || 2) : def.startDay;
       if(startEff === state.day && !def.started){
         def.started = true;
         var inst = startTournament(state, def, rng);
@@ -1054,11 +1064,12 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
           if(playQualiRound(state, t, qr, rng)) return true;
         }
         if(!t.mainBuilt && state.day >= t.startDay){
+          var qR = (TC.QUALI[t.cat] && TC.QUALI[t.cat].rounds) || 2;
           var guardq = 0;
-          while(t.qRound < 2 && guardq++ < 3){
+          while(t.qRound < qR && guardq++ < 4){
             if(playQualiRound(state, t, t.qRound, rng)) return true;
           }
-          if(t.qRound >= 2) buildMainDraw(state, t, rng);
+          if(t.qRound >= qR) buildMainDraw(state, t, rng);
         }
         if(!t.mainBuilt) continue;
       }
@@ -1220,13 +1231,14 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
       var focus = state.trainFocus || 'fh';
       // entrenar cansa de verdad: no se puede entrenar infinito sin descansar
       p.energy = Math.max(0, p.energy - 2.2);
-      var ageF = p.age <= 20 ? 2.2 : (p.age <= 24 ? 1.4 : (p.age <= 28 ? 0.8 : (p.age <= 31 ? 0.35 : 0.12)));
+      // curva de aprendizaje: de joven absorbes todo, de grande casi nada
+      var ageF = p.age <= 19 ? 3.4 : (p.age <= 21 ? 2.6 : (p.age <= 24 ? 1.9 : (p.age <= 27 ? 0.9 : (p.age <= 30 ? 0.45 : (p.age <= 33 ? 0.2 : 0.08)))));
       var curve = Math.max(0.1, (10.2 - p[focus]) / 6);
       // cuanto mas fundido, menos rinde el entrenamiento
       var eff = 0.4 + 0.6 * Math.min(1, p.energy / 55);
       // sin ritmo de partidos oficiales, el entrenamiento rinde cada vez menos
       var ritmo = TC.rhythmOf(state, p).mult;
-      p[focus] = Math.min(9.8, Math.round((p[focus] + 0.006 * ageF * curve * eff * ritmo) * 10000) / 10000);
+      p[focus] = Math.min(9.8, Math.round((p[focus] + 0.0095 * ageF * curve * eff * ritmo) * 10000) / 10000);
       // riesgo de lesion entrenando: crece fuerte con el cansancio
       var riskT = p.energy < 45 ? 0.002 + ((45 - p.energy) / 45) * 0.02 : 0.0004;
       if(rng() < riskT){
