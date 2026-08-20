@@ -388,8 +388,16 @@ details.round summary { cursor: pointer; font-weight: 800; color: var(--muted); 
   max-width: 720px; width: calc(100% - 32px); max-height: 88vh; overflow-y: auto;
   border: 1px solid var(--line2); box-shadow: 0 24px 80px rgba(0,0,0,.6);
 }
-#modal .attr-row .an { width: 82px; }
-#modal .adelta-slot { width: 40px; }
+#modal { overflow-x: hidden; }
+#modal .attr-row { min-width: 0; padding: 7px 9px; gap: 7px; }
+#modal .attr-row .an { width: 74px; font-size: 11px; }
+#modal .attr-row .av { width: 28px; font-size: 13px; }
+#modal .adelta-slot { width: 30px; }
+#modal .cmp { width: 30px; }
+#modal .abar { min-width: 46px; }
+#modal .pstats { gap: 12px 18px; }
+#modal .pstats .stat .v { font-size: 19px; }
+.modal-attrs { grid-template-columns: 1fr 1fr; }
 #modal h2 { font-family: Anton, sans-serif; font-weight: 400; text-transform: uppercase; letter-spacing: 1px; font-size: 26px; }
 .match-card { text-align: center; }
 .match-card .tourinfo { color: var(--muted); font-size: 13px; margin: 6px 0 18px; }
@@ -529,8 +537,11 @@ button, .chip, .tab, .trow, .plink, .tlink { touch-action: manipulation; }
   .f2f-vs { font-size: 18px; }
   .score-line { font-size: 28px; letter-spacing: 2px; min-height: 36px; }
   .verdict { font-size: 26px; }
-  #modal .attr-row .an { width: 74px; }
-  #modal .adelta-slot { width: 36px; }
+  /* ficha en mobile: atributos uno debajo del otro, sin scroll horizontal */
+  .modal-attrs { grid-template-columns: 1fr; }
+  #modal .attr-row .an { width: 84px; }
+  #modal .adelta-slot { width: 34px; }
+  #modal .cmp { width: 32px; }
 
   /* barra de acciones fija: boton grande en su propia fila */
   .actionbar {

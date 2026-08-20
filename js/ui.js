@@ -1720,7 +1720,7 @@ var UI = {};
           stat(Math.round(p.energy) + '%', 'Energia') +
         '</div>' +
         (isRival ? '<div class="modal-note" style="text-align:left;font-size:11px">Comparado con tus stats: <span class="cmp worse">+X</span> te supera · <span class="cmp better">−X</span> sos mejor</div>' : '') +
-        '<div class="attr-grid" style="grid-template-columns:1fr 1fr">' + attrs + '</div>' +
+        '<div class="attr-grid modal-attrs">' + attrs + '</div>' +
         (resHtml ? '<h3 class="section">Ultimos resultados</h3>' + resHtml : '') +
         '<div class="modal-actions"><button class="btn primary" id="pm-close">' +
           (S.pendingMatch ? 'Volver al partido' : 'Cerrar') + '</button></div>' +
