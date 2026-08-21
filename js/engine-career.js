@@ -322,6 +322,19 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
       if(state.humanId != null && state.players[state.humanId].lastMatchDay === undefined){
         state.players[state.humanId].lastMatchDay = state.day - 7;
       }
+      // reconstruir la vitrina desde el archivo (los titulos ganados por W.O. no se registraban)
+      if(state.career && state.archive && state.humanId != null){
+        var have = {};
+        state.career.titles.forEach(function(t){ have[t.name + '|' + t.year] = 1; });
+        var added = 0;
+        state.archive.forEach(function(e){
+          if(e.champId !== state.humanId) return;
+          if(have[e.name + '|' + e.y]) return;
+          state.career.titles.push({name: e.name, cat: e.cat, year: e.y, surf: e.surf});
+          added++;
+        });
+        if(added) state.career.titles.sort(function(a, b){ return a.year - b.year; });
+      }
       // compat: marcar en el archivo que torneos jugo el humano (partidas de antes de esta version)
       if(state.archive && state.archive.length && state.archive[0].my === undefined && state.humanId != null){
         var hres = {};
