@@ -219,6 +219,7 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     var pm = state.pendingMatch;
     if(!pm) return null;
     var inst = findActive(state, pm.tid);
+    if(!inst){ state.pendingMatch = null; return null; } // partido pendiente huerfano: limpiar
     var rng = state.rng;
     var m = TC.playWorldMatch(state, state.humanId, pm.oppId, inst, rng, !!pm.quali);
 
@@ -257,9 +258,7 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
       injuryMsg = m.injury.injury;
       TC.pushNews(state, 'Lesion: ' + injuryMsg.name + '. Parado ' + injuryMsg.days + ' dias.', true);
     }
-    if(won && inst.done && inst.championId === state.humanId){
-      state.career.titles.push({name: inst.name, cat: inst.cat, year: TC.dateOf(state.day).getUTCFullYear(), surf: inst.surf});
-    }
+    // (el titulo se registra en awardResult, que cubre tambien finales ganadas por W.O.)
 
     // el resto del dia sigue: rondas de otros torneos que quedaron sin jugar, y cierre del dia
     TC.playDayRounds(state);

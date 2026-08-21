@@ -623,6 +623,10 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
       pts = arr[Math.min(roundsWon, arr.length - 1)] || 0;
     }
     var p = state.players[pid];
+    // titulo del humano: registrado ACA (cubre tambien finales ganadas por W.O.)
+    if(isChampion && pid === state.humanId && state.career){
+      state.career.titles.push({name: inst.name, cat: inst.cat, year: TC.dateOf(state.day).getUTCFullYear(), surf: inst.surf});
+    }
     var entry = {day: state.day, pts: pts, tid: inst.id, name: inst.name, cat: inst.cat, rw: roundsWon, champ: !!isChampion, bid: inst.baseId || null};
     // para el humano guardamos el detalle del ultimo partido (rival y marcador)
     if(pid === state.humanId && rec && rec.p){
@@ -734,9 +738,27 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     return false;
   }
 
+  // Aviso cuando el humano gana o pierde por W.O. (que nunca sea silencioso)
+  function notifyHumanWO(state, inst, records, roundLbl){
+    if(state.humanId == null) return;
+    for(var i = 0; i < records.length; i++){
+      var rec = records[i];
+      if(!rec.wo || !rec.p) continue;
+      if(rec.p[0] !== state.humanId && rec.p[1] !== state.humanId) continue;
+      var oppId = rec.p[0] === state.humanId ? rec.p[1] : rec.p[0];
+      var oppN = oppId != null ? state.players[oppId].name : '?';
+      if(rec.w === state.humanId){
+        pushNews(state, oppN + ' se bajo lesionado: avanzas por W.O. en ' + inst.name + (roundLbl ? ' (' + roundLbl + ')' : '') + '.', true);
+      } else {
+        pushNews(state, 'No pudiste presentarte (lesion): derrota por W.O. ante ' + oppN + ' en ' + inst.name + '.', true);
+      }
+    }
+  }
+
   function finishRound(state, inst, rIdx, records, rng){
     inst.pendingRecords = null;
     inst.results[rIdx] = records;
+    notifyHumanWO(state, inst, records, TC.roundLabel(inst, rIdx));
     var winners = [];
     var nR = totalRounds(inst);
     for(var i = 0; i < records.length; i++){
@@ -830,6 +852,7 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
   function finishQualiRound(state, inst, qr, records, rng){
     inst.qPendingRecords = null;
     inst.qResults[qr] = records;
+    notifyHumanWO(state, inst, records, 'Qualy ronda ' + (qr + 1));
     var winners = [];
     for(var i = 0; i < records.length; i++){
       var rec = records[i];
@@ -922,6 +945,7 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
 
   function finishFinalsDay(state, inst, rIdx, records, rng){
     inst.pendingRecords = null;
+    notifyHumanWO(state, inst, records, rIdx <= 2 ? 'Round Robin' : (rIdx === 3 ? 'Semifinal' : 'Final'));
     inst.playedDays.push(rIdx);
     inst.results.push({day: rIdx, records: records});
     for(var i = 0; i < records.length; i++){

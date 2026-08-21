@@ -21,6 +21,7 @@ var UI = {};
   var archiveSurf = 'all';   // superficie o 'all'
   var chartRange = '1y';     // rango del grafico de ranking: 3m | 1y | all
   var rankYear = 'now';      // ranking actual o cierre de un año anterior
+  var h2hSort = 'played';    // orden del head-to-head
   var weekReport = null;     // cambios de atributos desde el ultimo avance
   var app;
 
@@ -389,8 +390,18 @@ var UI = {};
     var hh = S.h2h || {};
     var ids = Object.keys(hh);
     if(!ids.length) return '<p style="color:var(--muted)">Todavia no jugaste contra nadie (desde que existe el historial). Cada partido va sumando tu head-to-head contra ese rival.</p>';
-    ids.sort(function(a, b){ return (hh[b].w + hh[b].l) - (hh[a].w + hh[a].l); });
-    var html = '<h3 class="section">Tus rivalidades (' + ids.length + ' rivales)</h3>' +
+    var sorts = {
+      played: function(a, b){ return (hh[b].w + hh[b].l) - (hh[a].w + hh[a].l); },
+      az:     function(a, b){ return hh[a].name < hh[b].name ? -1 : 1; },
+      recent: function(a, b){ return ((hh[b].last && hh[b].last.day) || -99999) - ((hh[a].last && hh[a].last.day) || -99999); },
+      saldo:  function(a, b){ return (hh[b].w - hh[b].l) - (hh[a].w - hh[a].l) || (hh[b].w + hh[b].l) - (hh[a].w + hh[a].l); }
+    };
+    ids.sort(sorts[h2hSort] || sorts.played);
+    var html = '<div class="cal-filters">' +
+      [['played','Mas partidos'],['recent','Mas recientes'],['az','A-Z'],['saldo','Mejor saldo']].map(function(o){
+        return '<button class="chip' + (h2hSort === o[0] ? ' on' : '') + '" data-hsort="' + o[0] + '">' + o[1] + '</button>';
+      }).join('') + '</div>' +
+      '<h3 class="section">Tus rivalidades (' + ids.length + ' rivales)</h3>' +
       '<table class="rank"><tr><th>Rival</th><th>H2H</th><th>Ultimo partido</th></tr>';
     for(var i = 0; i < ids.length; i++){
       var id = parseInt(ids[i], 10);
@@ -1604,6 +1615,7 @@ var UI = {};
       if(t.dataset.aplayed){ archivePlayed = t.dataset.aplayed; render(); return; }
       if(t.dataset.crange){ chartRange = t.dataset.crange; render(); return; }
       if(t.dataset.ryear){ rankYear = t.dataset.ryear === 'now' ? 'now' : parseInt(t.dataset.ryear, 10); render(); return; }
+      if(t.dataset.hsort){ h2hSort = t.dataset.hsort; render(); return; }
       if(t.dataset.ayear){ archiveYear = parseInt(t.dataset.ayear, 10); render(); return; }
       if(t.dataset.amonth != null){ archiveMonth = t.dataset.amonth === 'all' ? 'all' : parseInt(t.dataset.amonth, 10); render(); return; }
       if(t.dataset.asurf){ archiveSurf = t.dataset.asurf; render(); return; }
@@ -1872,6 +1884,7 @@ var UI = {};
     var opp = S.players[pm.oppId];
     var res = TC.playPendingMatch(S);
     TC.save(S);
+    if(!res){ closeModal(); render(); return; }
 
     var h = human();
     var sets = parseScoreSets(res.score);
