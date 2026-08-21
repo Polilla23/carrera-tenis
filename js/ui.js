@@ -685,7 +685,10 @@ var UI = {};
       status = fin && fin.championId != null ? 'Campeon: ' + esc(S.players[fin.championId].name) : 'Terminado';
     } else if(inst && !inst.done){
       status = 'En juego';
-      if(inst.entrants && inst.entrants.indexOf(S.humanId) >= 0) status = 'Estas jugando';
+      if(S.players[S.humanId].curT === inst.id) status = 'Estas jugando';
+      else if((inst.entrants && inst.entrants.indexOf(S.humanId) >= 0) ||
+              (inst.qEntrants && inst.qEntrants.indexOf(S.humanId) >= 0) ||
+              inst.humanJoinLater) status = 'En juego · estas anotado';
     } else if(isReg){
       status = 'Inscripto';
       btn = '<button class="btn small" data-unreg="' + d.id + '">Bajarse</button>';

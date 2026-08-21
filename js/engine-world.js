@@ -374,7 +374,8 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     var allIn = entrants.slice();
     if(qc && def.cat !== 'FINALS'){
       var human2 = state.players[state.humanId];
-      var humanQuali = humanRegistered && human2 && !human2.injury && entrants.indexOf(state.humanId) < 0;
+      // para jugar la qualy tenes que estar libre (no se puede mientras jugas otro torneo)
+      var humanQuali = humanRegistered && human2 && !human2.injury && human2.curT == null && entrants.indexOf(state.humanId) < 0;
       var inMain = {};
       for(var x = 0; x < entrants.length; x++) inMain[entrants[x]] = 1;
       // la qualy es de los que NO entran directo: primero los que quedaron justo afuera
@@ -422,6 +423,12 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     for(var e = 0; e < allIn.length; e++){
       if(allIn[e] == null) continue;
       var pe = state.players[allIn[e]];
+      // si el humano sigue jugando otro torneo (ej: la final de la semana pasada mientras
+      // aca arranca la qualy), su incorporacion queda pendiente: no pisa curT ni viaja aun
+      if(allIn[e] === state.humanId && pe.curT != null && pe.curT !== inst.id){
+        inst.humanJoinLater = true;
+        continue;
+      }
       pe.curT = inst.id;
       // el viaje al torneo cuesta energia (mucho mas si es otro continente)
       var from = pe.loc || playerRegion(pe);
@@ -1131,6 +1138,26 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
   TC.finishDay = function(state){
     var rng = state.rng;
     var ps = state.players;
+
+    // incorporacion pendiente: al quedar libre del torneo anterior, recien ahi viajas al proximo
+    if(state.humanId != null){
+      var hj = ps[state.humanId];
+      if(hj.curT == null){
+        for(var ji = 0; ji < state.active.length; ji++){
+          var jt = state.active[ji];
+          if(jt.humanJoinLater && !jt.done){
+            jt.humanJoinLater = false;
+            hj.curT = jt.id;
+            var jFrom = hj.loc || playerRegion(hj);
+            var jc = TC.travelCost(jFrom, jt.region);
+            hj.energy = Math.max(0, hj.energy - jc);
+            if(jt.region) hj.loc = jt.region;
+            if(jc > 5) pushNews(state, 'Vuelo largo a ' + (TC.REGION_LABEL[jt.region] || '?') + ' para ' + jt.name + ' (-' + jc + ' de energia)', true);
+            break;
+          }
+        }
+      }
+    }
 
     for(var i = 0; i < ps.length; i++){
       var p = ps[i];
