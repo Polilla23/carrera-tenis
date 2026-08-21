@@ -107,19 +107,32 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
   };
 
   TC.overlapsWith = function(state, def){
-    var s1 = def.startDay, e1 = def.startDay + def.dur - 1;
+    var h = state.players[state.humanId];
+    // dia de tu primer partido posible en un torneo: qualy si entras por qualy,
+    // sino la primera ronda del cuadro (en Masters largos y GS es el dia 1)
+    function firstDay(d){
+      var cat = TC.CATS[d.cat], qc = TC.QUALI[d.cat];
+      if(qc && h.rank > cat.maxRank) return d.startDay - (qc.rounds || 2);
+      return d.startDay + TC.roundDays(cat.draw, d.dur)[0];
+    }
+    // dos eventos que se pisan son compatibles solo si el que termina primero
+    // te libera antes de tu primer partido en el otro (Montreal -> Cincinnati)
+    function clash(a, b){
+      var aE = a.startDay + a.dur - 1, bE = b.startDay + b.dur - 1;
+      if(aE < b.startDay || bE < a.startDay) return false;
+      if(aE <= bE) return !(aE < firstDay(b));
+      return !(bE < firstDay(a));
+    }
     // contra otras inscripciones
     for(var i = 0; i < state.registrations.length; i++){
       var other = findDef(state, state.registrations[i]);
       if(!other || other.id === def.id) continue;
-      var s2 = other.startDay, e2 = other.startDay + other.dur - 1;
-      if(s1 <= e2 && s2 <= e1) return other.name;
+      if(clash(other, def)) return other.name;
     }
     // contra el torneo que estoy jugando
-    var h = state.players[state.humanId];
     if(h.curT){
       var t = findActive(state, h.curT);
-      if(t && s1 <= t.endDay && t.startDay <= e1) return t.name;
+      if(t && clash({startDay: t.startDay, dur: t.dur, cat: t.cat}, def)) return t.name;
     }
     return null;
   };

@@ -254,10 +254,25 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     return best;
   }
 
+  // Dia del primer partido de cuadro principal (los Masters largos debutan el dia 1)
+  function firstMainDay(def){
+    return def.startDay + TC.roundDays(TC.CATS[def.cat].draw, def.dur)[0];
+  }
+
+  // Sigue jugando otro torneo, pero ese termina antes de su primer partido aca:
+  // puede anotarse igual y llegar tarde (como Montreal -> Cincinnati en la vida real)
+  function canJoinLate(p, def, state){
+    for(var i = 0; i < state.active.length; i++){
+      var t = state.active[i];
+      if(t.id === p.curT) return t.done || t.endDay < firstMainDay(def);
+    }
+    return false;
+  }
+
   function eligible(p, def, state){
     var cat = TC.CATS[def.cat];
     if(p.injury) return false;
-    if(p.curT !== null) return false;
+    if(p.curT !== null && !canJoinLate(p, def, state)) return false;
     var rank = p.rank;
     if(rank < cat.minRank) return false;
     if(rank > cat.maxRank) return false;
@@ -440,10 +455,11 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     for(var e = 0; e < allIn.length; e++){
       if(allIn[e] == null) continue;
       var pe = state.players[allIn[e]];
-      // si el humano sigue jugando otro torneo (ej: la final de la semana pasada mientras
-      // aca arranca la qualy), su incorporacion queda pendiente: no pisa curT ni viaja aun
-      if(allIn[e] === state.humanId && pe.curT != null && pe.curT !== inst.id){
-        inst.humanJoinLater = true;
+      // si sigue jugando otro torneo (ej: la final de la semana pasada mientras aca
+      // arranca la qualy), su incorporacion queda pendiente: no pisa curT ni viaja aun
+      if(pe.curT != null && pe.curT !== inst.id){
+        if(allIn[e] === state.humanId){ inst.humanJoinLater = true; }
+        else { (inst.joinLater = inst.joinLater || []).push(allIn[e]); }
         continue;
       }
       pe.curT = inst.id;
@@ -1212,6 +1228,23 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
           }
         }
       }
+    }
+
+    // IA con incorporacion pendiente: al quedar libre del torneo anterior, viaja y se suma
+    for(var ai = 0; ai < state.active.length; ai++){
+      var at = state.active[ai];
+      if(!at.joinLater || !at.joinLater.length || at.done) continue;
+      var still = [];
+      for(var aj = 0; aj < at.joinLater.length; aj++){
+        var ap = ps[at.joinLater[aj]];
+        if(ap.curT != null){ still.push(at.joinLater[aj]); continue; }
+        if(ap.injury) continue; // se lesiono en el otro torneo: su partido queda W.O.
+        ap.curT = at.id;
+        var aFrom = ap.loc || playerRegion(ap);
+        ap.energy = Math.max(0, ap.energy - TC.travelCost(aFrom, at.region));
+        if(at.region) ap.loc = at.region;
+      }
+      at.joinLater = still;
     }
 
     for(var i = 0; i < ps.length; i++){

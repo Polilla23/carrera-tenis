@@ -43,9 +43,12 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
   // Dias (offset desde inicio del torneo) en que se juega cada ronda
   TC.roundDays = function(drawSize, dur){
     var rounds = Math.round(Math.log(drawSize) / Math.log(2));
+    // en eventos largos (Masters de 12 dias, Grand Slams) el cuadro principal debuta
+    // el dia 1: la final del torneo anterior puede caer en el dia 0 (Montreal->Cincinnati)
+    var lead = dur >= 11 ? 1 : 0;
     var days = [];
     for(var r = 0; r < rounds; r++){
-      days.push(Math.round(r * (dur - 1) / Math.max(1, rounds - 1)));
+      days.push(lead + Math.round(r * (dur - 1 - lead) / Math.max(1, rounds - 1)));
     }
     return days;
   };
