@@ -1772,14 +1772,16 @@ var UI = {};
         '<div class="face2face">' +
           '<div class="f2f-p"><div class="nm" style="color:var(--accent)">' + esc(h.name) + '</div>' +
             '<div class="meta">' + (h.rank === 9999 ? 'NR' : '#' + h.rank) + ' · Energia ' + Math.round(h.energy) + '% · ' + fmtForm(h.form) + '</div>' +
-            '<div class="meta">Nivel <span class="stars">' + starsOf(h) + '</span></div></div>' +
+            '<div class="meta">Nivel <span class="stars">' + starsOf(h) + '</span> (' + TC.overall(h).toFixed(2) + ')</div></div>' +
           '<div class="f2f-vs">VS</div>' +
           '<div class="f2f-p"><div class="nm plink" data-player="' + opp.id + '" title="Ver ficha">' + esc(opp.name) + handTag(opp) + '</div>' +
             '<div class="meta">' + (opp.rank === 9999 ? 'NR' : '#' + opp.rank) + ' · ' + ccHtml(opp.country) + ' · ' + opp.age + ' años · ' + (opp.hand === 'Z' ? 'Zurdo' : 'Diestro') + '</div>' +
             '<div class="meta">Energia ' + Math.round(opp.energy) + '% · ' + fmtForm(opp.form) + '</div>' +
-            '<div class="meta">Nivel <span class="stars">' + starsOf(opp) + '</span> · Prefiere ' + surfHtml(opp.pref) + '</div>' +
+            '<div class="meta">Nivel <span class="stars">' + starsOf(opp) + '</span> (' + TC.overall(opp).toFixed(2) + ') ' + cmpChip(TC.overall(opp) - TC.overall(h)) + ' · Prefiere ' + surfHtml(opp.pref) + '</div>' +
             (S.h2h && S.h2h[opp.id] ? '<div class="meta">H2H: ' + h2hLabel(S.h2h[opp.id]) + '</div>' : '') + '</div>' +
         '</div>' +
+        '<div class="modal-note" style="font-size:12px">Diferencia de nivel: ' + cmpChip(TC.overall(opp) - TC.overall(h)) +
+          (Math.abs(TC.overall(opp) - TC.overall(h)) < 0.15 ? ' parejo' : (TC.overall(opp) > TC.overall(h) ? ' a favor del rival' : ' a tu favor')) + '</div>' +
         (h.energy < 30 ? '<div class="injury-note">⚠️ Estas fundido (' + Math.round(h.energy) + '%): jugar asi multiplica el riesgo de una lesion de meses</div>' : '') +
         '<div class="modal-actions">' +
           '<button class="btn primary" id="m-play">Jugar el partido</button>' +
