@@ -331,6 +331,8 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
         farPool.sort(function(a, b){ return a.rank - b.rank; });
         pool = pool.concat(farPool.slice(0, slots - pool.length));
       }
+      // los que pasaron todos los filtros pero no entraron por ranking van a la qualy
+      var directOverflow = pool.slice(slots);
       pool = pool.slice(0, slots);
       // si falta gente, completar con "qualifiers" (ranking peor que el corte)
       if(pool.length < slots){
@@ -368,13 +370,24 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
       var humanQuali = humanRegistered && human2 && !human2.injury && entrants.indexOf(state.humanId) < 0;
       var inMain = {};
       for(var x = 0; x < entrants.length; x++) inMain[entrants[x]] = 1;
-      var qpool = [];
+      // la qualy es de los que NO entran directo: primero los que quedaron justo afuera
+      // del corte (y que ELIGIERON este torneo), despues los de ranking peor que el corte
+      var qpool = (typeof directOverflow !== 'undefined' ? directOverflow : []).filter(function(op){
+        return !inMain[op.id] && !op.injury && op.curT === null;
+      });
+      var inQ = {};
+      qpool.forEach(function(op){ inQ[op.id] = 1; });
       for(var j = 0; j < state.players.length; j++){
         var qp = state.players[j];
-        if(qp.id === state.humanId || inMain[qp.id]) continue;
+        if(qp.id === state.humanId || inMain[qp.id] || inQ[qp.id]) continue;
         if(qp.injury || qp.curT !== null) continue;
-        if(qp.rank < cat.minRank || qp.rank > qc.qMax) continue;
+        // solo ranking PEOR que el corte directo (los top que no estan es porque eligieron otro torneo)
+        if(qp.rank <= cat.maxRank || qp.rank > qc.qMax) continue;
+        if(qp.rank < cat.minRank) continue;
         if(qp.energy < 40) continue;
+        // misma eleccion entre torneos hermanos y semana libre que en el cuadro principal
+        if(typeof sibs !== 'undefined' && sibs.length > 1 && chooseSibling(qp, sibs).id !== def.id) continue;
+        if(h01(qp.id + 104729, def._hn || 0) < 0.06) continue;
         qpool.push(qp);
       }
       qpool.sort(function(a, b){ return a.rank - b.rank; });
