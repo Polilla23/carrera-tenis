@@ -299,6 +299,21 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
       var isSmall = def.cat.indexOf('CH') === 0 || def.cat.indexOf('ITF') === 0;
       var travelerProb = def.cat.indexOf('ITF') === 0 ? 0.12 : 0.25;
 
+      // los que entran directo a un GS/M1000 que se superpone con este torneo se reservan
+      // para el grande (salvo una minoria que igual prefiere el chico, como en la vida real)
+      var bigCut = 0;
+      if(def.cat !== 'GS' && def.cat !== 'M1000'){
+        for(var bi = 0; bi < state.schedule.length; bi++){
+          var bd = state.schedule[bi];
+          if(bd.cat !== 'GS' && bd.cat !== 'M1000') continue;
+          var bQ = (TC.QUALI[bd.cat] && TC.QUALI[bd.cat].rounds) || 0;
+          if(def.startDay <= bd.startDay + bd.dur - 1 && bd.startDay - bQ <= def.startDay + def.dur - 1){
+            var bMax = TC.CATS[bd.cat].maxRank;
+            if(bMax > bigCut) bigCut = bMax;
+          }
+        }
+      }
+
       var pool = [], farPool = [];
       for(var i = 0; i < state.players.length; i++){
         var p = state.players[i];
@@ -307,6 +322,8 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
         if(p.energy < 42 && def.cat !== 'GS') continue; // la IA se administra
         // los bien rankeados rara vez bajan a jugar categorias menores
         if(cat.idealMin && p.rank < cat.idealMin && rng() > 0.15) continue;
+        // reservado para el GS/M1000 superpuesto (solo un 15% resigna el grande por este)
+        if(bigCut && p.rank <= bigCut && h01(p.id + 424242, def._hn || (def._hn = strHashNum(def.id))) > 0.15) continue;
         // si hay varios torneos de esta categoria en la semana, cada uno va al que eligio
         if(sibs.length > 1 && chooseSibling(p, sibs).id !== def.id) continue;
         // algun buen jugador baja del 500 al 250 de la misma semana (preparacion, casa, etc)
@@ -465,6 +482,19 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
 
     var isSmall = def.cat.indexOf('CH') === 0 || def.cat.indexOf('ITF') === 0;
     var travelerProb = def.cat.indexOf('ITF') === 0 ? 0.12 : 0.25;
+    // reservados para un GS/M1000 superpuesto (mismo criterio que el cuadro real)
+    var bigCut = 0;
+    if(def.cat !== 'GS' && def.cat !== 'M1000'){
+      for(var bi2 = 0; bi2 < state.schedule.length; bi2++){
+        var bd2 = state.schedule[bi2];
+        if(bd2.cat !== 'GS' && bd2.cat !== 'M1000') continue;
+        var bQ2 = (TC.QUALI[bd2.cat] && TC.QUALI[bd2.cat].rounds) || 0;
+        if(def.startDay <= bd2.startDay + bd2.dur - 1 && bd2.startDay - bQ2 <= def.startDay + def.dur - 1){
+          var bMax2 = TC.CATS[bd2.cat].maxRank;
+          if(bMax2 > bigCut) bigCut = bMax2;
+        }
+      }
+    }
     var pool = [], farPool = [];
     for(var i = 0; i < state.players.length; i++){
       var p = state.players[i];
@@ -472,6 +502,7 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
       if(p.rank < cat.minRank || p.rank > cat.maxRank) continue;
       if(cat.idealMin && p.rank < cat.idealMin) continue; // los top no suelen bajar
       if(p.injury && state.day + p.injury.days > def.startDay) continue;
+      if(bigCut && p.rank <= bigCut && h01(p.id + 424242, def._hn || (def._hn = strHashNum(def.id))) > 0.15) continue;
       if(sibs.length > 1 && chooseSibling(p, sibs).id !== def.id) continue;
       if(sib250 && p.rank <= 60 && h01(p.id + 7919, def._hn) < 0.08) continue;
       if(h01(p.id + 104729, def._hn) < 0.06) continue;
