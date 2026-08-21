@@ -783,6 +783,9 @@ var UI = {};
     }
 
     html += renderDraw(t);
+    // igual que el visor de torneos: inscriptos con seeds y reparto de puntos
+    html += entrantsTable({cat: t.cat, id: t.id, baseId: t.baseId}, t);
+    html += pointsTable({cat: t.cat, baseId: t.baseId});
     return html;
   }
 
