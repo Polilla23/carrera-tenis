@@ -832,33 +832,42 @@ var UI = {};
     '</div>';
   }
 
-  // Llave visual desde la ronda rStart hasta la final, con conectores
-  function renderVisualBracket(t, rStart){
-    var totalR = Math.round(Math.log(t.drawSize) / Math.log(2));
+  // Llave visual generica: rango de rondas [rStart, rEnd) con conectores.
+  // view: {bracket, results, drawSize, entrants, done, championId, labels?, qualifiers?}
+  // tail: 'champ' (columna del campeon) | 'quals' (columna de clasificados) | null
+  function renderVisualBracket(view, rStart, rEnd, tail){
+    var totalR = Math.round(Math.log(view.drawSize) / Math.log(2));
+    if(rEnd == null) rEnd = totalR;
     var html = '<div class="bracket-wrap"><div class="bracket">';
-    for(var r = rStart; r < totalR; r++){
-      var matches = t.drawSize / Math.pow(2, r + 1);
-      var hasNext = r < totalR - 1;
+    for(var r = rStart; r < rEnd; r++){
+      var matches = view.drawSize / Math.pow(2, r + 1);
+      var hasNext = r < rEnd - 1 || tail === 'quals';
+      var title = view.labels ? view.labels[r] : TC.roundLabel(view, r);
       html += '<div class="bcol' + (hasNext ? ' haslink' : '') + (r > rStart ? ' linked' : '') + '">' +
-        '<div class="bcol-title">' + TC.roundLabel(t, r) + '</div><div class="bcol-body">';
+        '<div class="bcol-title">' + title + '</div><div class="bcol-body">';
       if(matches === 1){
-        html += '<div class="bpair"><div class="bslot">' + bracketMatchCard(t, r, 0) + '</div></div>';
+        html += '<div class="bpair"><div class="bslot">' + bracketMatchCard(view, r, 0) + '</div></div>';
       } else {
         for(var p = 0; p < matches; p += 2){
           html += '<div class="bpair">' +
-            '<div class="bslot">' + bracketMatchCard(t, r, p) + '</div>' +
-            '<div class="bslot">' + bracketMatchCard(t, r, p + 1) + '</div>' +
+            '<div class="bslot">' + bracketMatchCard(view, r, p) + '</div>' +
+            '<div class="bslot">' + bracketMatchCard(view, r, p + 1) + '</div>' +
           '</div>';
         }
       }
       html += '</div></div>';
     }
-    // columna del campeon
-    html += '<div class="bchamp">' +
-      (t.done && t.championId != null
-        ? '<div class="cup">🏆</div><div class="clbl">Campeon</div><div class="cname">' + playerName(t.championId, false, true) + '</div>'
-        : '<div class="cup" style="opacity:.25">🏆</div><div class="clbl" style="opacity:.5">Campeon</div>') +
-    '</div>';
+    if(tail === 'champ'){
+      html += '<div class="bchamp">' +
+        (view.done && view.championId != null
+          ? '<div class="cup">🏆</div><div class="clbl">Campeon</div><div class="cname">' + playerName(view.championId, false, true) + '</div>'
+          : '<div class="cup" style="opacity:.25">🏆</div><div class="clbl" style="opacity:.5">Campeon</div>') +
+      '</div>';
+    } else if(tail === 'quals' && view.qualifiers && view.qualifiers.length){
+      html += '<div class="bchamp qualcol"><div class="clbl">🎟️ Clasificados</div>' +
+        view.qualifiers.map(function(id){ return '<div class="qname">' + playerName(id, false, true) + '</div>'; }).join('') +
+      '</div>';
+    }
     return html + '</div></div>';
   }
 
@@ -897,22 +906,43 @@ var UI = {};
     return html;
   }
 
-  // Cuadro completo: qualy + rondas previas como lista + fase final como llave visual
+  // Cuadro completo: qualy y rondas previas como llaves plegables + fase final como llave visual
   function renderDraw(t){
-    var html = renderQualiSection(t);
+    var html = '';
+
+    // fase previa (qualy) como llave visual, en seccion expandible
+    if(t.qBracket){
+      var qc = TC.QUALI[t.cat] || {rounds: 2, q: 4};
+      var qRounds = qc.rounds || 2;
+      var qLabels = [];
+      for(var ql = 0; ql < qRounds; ql++) qLabels.push('Qualy — ronda ' + (ql + 1));
+      var qview = {
+        bracket: t.qBracket, results: t.qResults, drawSize: qc.q * Math.pow(2, qRounds),
+        entrants: t.qEntrants, done: false, labels: qLabels, qualifiers: t.qualifiers
+      };
+      var qDone = t.qualifiers && t.qualifiers.length;
+      html += '<details class="bsection"' + (!t.mainBuilt ? ' open' : '') + '><summary>Fase previa (Qualy) — ' +
+        (qDone ? t.qualifiers.length + ' clasificados' : 'en juego') + '</summary>' +
+        renderVisualBracket(qview, 0, qRounds, qDone ? 'quals' : null) +
+      '</details>';
+    }
     if(t.qBracket && !t.mainBuilt){
       return html + '<p style="color:var(--muted)">El cuadro principal se sortea cuando termine la qualy.</p>';
     }
     if(!t.bracket) return html + '<p style="color:var(--muted)">No hay datos del cuadro de este torneo.</p>';
+
     var totalR = Math.round(Math.log(t.drawSize) / Math.log(2));
-    var rStart = t.drawSize > 32 ? totalR - 4 : 0; // cuadros grandes: llave visual desde octavos
+    var rStart = t.drawSize > 32 ? totalR - 4 : 0; // cuadros grandes: fase final desde octavos
     if(rStart > 0){
-      html += '<h3 class="section">Rondas previas</h3>' + renderRoundsRange(t, 0, rStart);
+      var lbl0 = TC.roundLabel(t, 0), lblFin = TC.roundLabel(t, rStart - 1);
+      html += '<details class="bsection"><summary>Rondas previas (' + lbl0 + (rStart > 1 ? ' a ' + lblFin : '') + ')</summary>' +
+        renderVisualBracket(t, 0, rStart, null) +
+      '</details>';
       html += '<h3 class="section">Fase final</h3>';
     } else if(t.qBracket){
       html += '<h3 class="section">Cuadro principal</h3>';
     }
-    html += renderVisualBracket(t, rStart);
+    html += renderVisualBracket(t, rStart, totalR, 'champ');
     return html;
   }
 
