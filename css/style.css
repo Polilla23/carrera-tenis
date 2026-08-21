@@ -358,9 +358,10 @@ details.round summary { cursor: pointer; font-weight: 800; color: var(--muted); 
 .brow.winner { background: rgba(200,243,29,.07); }
 .brow.winner .bname { font-weight: 800; }
 .brow .bseed { color: var(--warn); font-size: 10px; font-weight: 800; width: 17px; flex-shrink: 0; text-align: right; }
-.brow .bname { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.brow .bname { flex: 1; min-width: 58px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .brow .bname.tbd { color: var(--muted); font-style: italic; }
-.brow .bsc { color: var(--muted); font-size: 11px; font-weight: 700; white-space: nowrap; }
+.brow .bsc { color: var(--muted); font-size: 11px; font-weight: 700; white-space: normal; text-align: right; line-height: 1.4; max-width: 60%; }
+.brow .bsc .bset { white-space: nowrap; }
 .brow.winner .bsc { color: var(--accent2); }
 .bchamp { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; width: 190px; flex-shrink: 0; }
 .bchamp .cup { font-size: 34px; }

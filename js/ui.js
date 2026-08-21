@@ -831,7 +831,7 @@ var UI = {};
     return '<div class="brow' + (isWinner ? ' winner' : '') + '">' +
       '<span class="bseed">' + (s || '') + '</span>' +
       '<span class="bname plink' + (id === S.humanId ? ' meplink' : '') + '" data-player="' + id + '">' + esc(shortName(id)) + '</span>' +
-      (isWinner && sc ? '<span class="bsc">' + sc + '</span>' : '') +
+      (isWinner && sc ? '<span class="bsc">' + sc.split(' ').map(function(s){ return '<span class="bset">' + s + '</span>'; }).join(' ') + '</span>' : '') +
     '</div>';
   }
 
