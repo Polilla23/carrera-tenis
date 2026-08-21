@@ -233,8 +233,14 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
   }
 
   // Entre torneos "hermanos" (misma categoria, misma semana), cada jugador elige el suyo:
-  // superficie preferida + cercania geografica + gusto personal
+  // superficie preferida + cercania geografica + donde esta parado ahora + gusto personal.
+  // Los cabezas de serie se reparten parejo (alternados) para que los cuadros queden equilibrados.
   function chooseSibling(p, sibs){
+    if(p.rank >= 1 && p.rank <= 20 && sibs.length > 1){
+      var arr = sibs.slice().sort(function(a, b){ return a.id < b.id ? -1 : 1; });
+      var idx = p.rank + Math.floor(sibs[0].startDay / 7);
+      return arr[((idx % arr.length) + arr.length) % arr.length];
+    }
     var best = null, bestScore = -Infinity;
     for(var i = 0; i < sibs.length; i++){
       var s = sibs[i];
@@ -242,6 +248,7 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
       var score = h01(p.id, s._hn);                                  // gusto personal (0-1)
       if(s.surf === p.pref) score += 0.7;                             // su superficie
       if(s.region && s.region === playerRegion(p)) score += 0.55;     // cerca de casa
+      if(s.region && p.loc && s.region === p.loc) score += 0.4;       // ya esta en ese continente
       if(score > bestScore){ bestScore = score; best = s; }
     }
     return best;
@@ -1028,6 +1035,22 @@ var TC = (typeof TC !== 'undefined') ? TC : {};
     else if(dt.getUTCMonth() === 0 && dt.getUTCDate() === 1) newYear = dt.getUTCFullYear(); // respaldo para partidas viejas
     if(newYear && state.seasonYear !== newYear){
       if(state.seasonYear){
+        // foto del ranking de fin de año (registro historico)
+        var yTop = state.players.filter(function(p){ return p.rank !== 9999; })
+                                .sort(function(a, b){ return a.rank - b.rank; });
+        var snapTop = yTop.slice(0, 150).map(function(p){
+          return {r: p.rank, n: p.name, c: p.country, p: p.pts, id: p.id, h: p.id === state.humanId};
+        });
+        if(state.humanId != null){
+          var hu2 = state.players[state.humanId];
+          if(hu2.rank !== 9999 && hu2.rank > 150){
+            snapTop.push({r: hu2.rank, n: hu2.name, c: hu2.country, p: hu2.pts, id: hu2.id, h: true});
+          }
+        }
+        state.rankArchive = state.rankArchive || [];
+        state.rankArchive.push({y: state.seasonYear, top: snapTop});
+        if(state.rankArchive.length > 25) state.rankArchive.shift();
+
         if(!state.presim && state.humanId != null) buildRecap(state, state.seasonYear);
         seasonRollover(state, rng);
       }

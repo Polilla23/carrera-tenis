@@ -20,6 +20,7 @@ var UI = {};
   var archiveMonth = 'all';  // mes (0-11) o 'all'
   var archiveSurf = 'all';   // superficie o 'all'
   var chartRange = '1y';     // rango del grafico de ranking: 3m | 1y | all
+  var rankYear = 'now';      // ranking actual o cierre de un año anterior
   var weekReport = null;     // cambios de atributos desde el ultimo avance
   var app;
 
@@ -1375,11 +1376,39 @@ var UI = {};
   // ================= RANKING =================
   function renderRanking(){
     var h = human();
+
+    // selector de año: ranking actual o el cierre de temporadas anteriores
+    var ra = S.rankArchive || [];
+    var yearsHtml = '';
+    if(ra.length){
+      yearsHtml = '<div class="cal-filters">' +
+        '<button class="chip' + (rankYear === 'now' ? ' on' : '') + '" data-ryear="now">Actual</button>' +
+        ra.slice().reverse().map(function(e){
+          return '<button class="chip' + (rankYear === e.y ? ' on' : '') + '" data-ryear="' + e.y + '">Cierre ' + e.y + '</button>';
+        }).join('') + '</div>';
+    }
+
+    // vista historica: el top al cierre de ese año
+    if(rankYear !== 'now'){
+      var snap = null;
+      for(var si = 0; si < ra.length; si++) if(ra[si].y === rankYear) snap = ra[si];
+      if(!snap){ rankYear = 'now'; return renderRanking(); }
+      var html2 = yearsHtml + '<h3 class="section">Ranking al cierre de la temporada ' + snap.y + '</h3>' +
+        '<table class="rank"><tr><th>#</th><th>Jugador</th><th>Pais</th><th style="text-align:right">Puntos</th></tr>';
+      snap.top.forEach(function(e){
+        var nm = (e.id != null && S.players[e.id] && S.players[e.id].name === e.n) ? playerName(e.id, false, true) : esc(e.n);
+        html2 += '<tr' + (e.h ? ' class="me"' : '') + '><td class="num">' + e.r + '</td>' +
+          '<td>' + nm + (e.h ? ' <span style="color:var(--accent);font-size:11px">(vos)</span>' : '') + '</td>' +
+          '<td>' + ccHtml(e.c) + '</td><td style="text-align:right">' + e.p + '</td></tr>';
+      });
+      return html2 + '</table>';
+    }
+
     var ranked = S.players.filter(function(p){ return p.rank !== 9999; })
                           .sort(function(a,b){ return a.rank - b.rank; });
 
     // tu posicion, siempre a la vista mientras scrolleas
-    var html = '';
+    var html = yearsHtml;
     if(h.rank !== 9999){
       var mvh = '';
       if(h.prevRank && h.prevRank !== 9999 && h.prevRank !== h.rank){
@@ -1571,6 +1600,7 @@ var UI = {};
       if(t.dataset.aregion){ archiveRegion = t.dataset.aregion; render(); return; }
       if(t.dataset.aplayed){ archivePlayed = t.dataset.aplayed; render(); return; }
       if(t.dataset.crange){ chartRange = t.dataset.crange; render(); return; }
+      if(t.dataset.ryear){ rankYear = t.dataset.ryear === 'now' ? 'now' : parseInt(t.dataset.ryear, 10); render(); return; }
       if(t.dataset.ayear){ archiveYear = parseInt(t.dataset.ayear, 10); render(); return; }
       if(t.dataset.amonth != null){ archiveMonth = t.dataset.amonth === 'all' ? 'all' : parseInt(t.dataset.amonth, 10); render(); return; }
       if(t.dataset.asurf){ archiveSurf = t.dataset.asurf; render(); return; }
